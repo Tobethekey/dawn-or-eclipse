@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ENIGMA-CHALLENGE // ACT 1 — THE SIGNAL</title>
+<style>
+  /* ------------------------------------------------------------------ *
+   * Terminal look: monospace, green-on-black. DOM only, no canvas.     *
+   * One scrolling output log + one input line. Self-contained.         *
+   * ------------------------------------------------------------------ */
+  :root { --fg: #33ff66; --fg-dim: #1f8f3d; --bg: #050805; --warn: #ffcc33; --err: #ff5544; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
+    font-size: 15px;
+    line-height: 1.45;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #statusbar {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--fg-dim);
+    background: #07120a;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 4px rgba(51,255,102,0.35);
+  }
+  #clock { color: var(--warn); }
+  #clock.critical { color: var(--err); animation: blink 0.8s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  #screen {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 14px 16px 4px 16px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-shadow: 0 0 3px rgba(51,255,102,0.25);
+  }
+  #screen .sys   { color: var(--fg); }
+  #screen .dim   { color: var(--fg-dim); }
+  #screen .ai    { color: #5fd0ff; }          /* the human-side AI: GEMINI */
+  #screen .human { color: var(--warn); }       /* the private / human-only channel */
+  #screen .err   { color: var(--err); }
+  #screen .ok    { color: #66ffb0; }
+  #screen .you   { color: #cccccc; }
+  #screen .bar   { color: var(--fg-dim); }
+  #inputline {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px 14px 16px;
+    border-top: 1px solid var(--fg-dim);
+  }
+  #prompt { color: var(--fg); margin-right: 8px; white-space: nowrap; }
+  #cmd {
+    flex: 1 1 auto;
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    font: inherit;
+    outline: none;
+    text-shadow: 0 0 3px rgba(51,255,102,0.25);
+  }
+  #cmd::placeholder { color: var(--fg-dim); opacity: 0.6; }
+  ::selection { background: var(--fg-dim); color: #000; }
+</style>
+</head>
+<body>
+  <div id="statusbar">
+    <span id="title">ENIGMA-CHALLENGE :: ACT 1 — THE SIGNAL</span>
+    <span>SOLSTICE WINDOW <span id="clock">--</span></span>
+  </div>
+  <div id="screen" aria-live="polite"></div>
+  <form id="inputline" autocomplete="off">
+    <span id="prompt">&gt;</span>
+    <input id="cmd" type="text" spellcheck="false" autofocus
+           placeholder="type a command — start with HELP" />
+  </form>
+
+<script>
+"use strict";
+/* ====================================================================== *
+ *  ENIGMA-CHALLENGE — ACT 1 WALKING SKELETON
+ *  Single file. Vanilla JS. No build, no framework, no network, no SW.
+ *  Runs from file:// (double-click) and inside StackBlitz/CodePen.
+ *
+ *  Act-1 crib set is the EXACT Gate-0-passing "Candidate A":
+ *    - Body shortlist: RELAY NODE {SEVEN|THREE|FOUR|TWO|NINE} OF THE OUTER LATTICE
+ *    - Correct = THREE (index 1)
+ *    - Private disambiguator = sender node 3, recovered by the HUMAN from a
+ *      SEPARATE preamble cipher (SRC-TAG OL-03/D) — never seen by the AI layer.
+ *
+ *  All game text is ENGLISH. The diegetic helper AI is GEMINI:.
+ *
+ *  ARCHITECTURE NOTE (the whole point — see askAI() below):
+ *  GEMINI's strings are pre-baked / deterministic (no live call). In the
+ *  full build these come from build-time Gemini JSON fixtures committed to
+ *  the repo; here they are inlined as the AI_KNOWLEDGE object. Critically,
+ *  askAI() is structurally given ONLY the body ciphertext / candidate
+ *  shortlist. It NEVER receives the preamble or the private node datum.
+ *  The player gets that datum through a DIFFERENT code path (DECODE
+ *  PREAMBLE -> PRIVATE_CHANNEL). That separation is the in-code proof that
+ *  the AI cannot solve Act 1 alone.
+ * ====================================================================== */
+
+/* ---------------------------------------------------------------------- *
+ *  1. WORLD DATA — split into two STRICTLY SEPARATE streams.
+ * ---------------------------------------------------------------------- */
+
+// --- STREAM 1: THE BODY (this is ALL the AI layer is ever allowed to touch).
+// The deterministic engine has already collapsed the polyalphabetic body to
+// five grammatically valid, statistically near-equivalent candidates.
+// (Pre-baked here; in the full build the engine runs live on ciphertext.)
+const BODY_STREAM = Object.freeze({
+  // A short stand-in ciphertext, shown for flavour only. Not solved at runtime.
+  ciphertext: "QJ KSPLXGZ AK SIDZO TWXV ELYIT GU ELN WXENC DZEEQGN",
+  candidates: Object.freeze([
+    "WE BROADCAST AS RELAY NODE SEVEN OF THE OUTER LATTICE",
+    "WE BROADCAST AS RELAY NODE THREE OF THE OUTER LATTICE", // <- correct
+    "WE BROADCAST AS RELAY NODE FOUR  OF THE OUTER LATTICE",
+    "WE BROADCAST AS RELAY NODE TWO   OF THE OUTER LATTICE",
+    "WE BROADCAST AS RELAY NODE NINE  OF THE OUTER LATTICE",
+  ]),
+  // The node number named by each candidate (the only varying token).
+  candidateNodes: Object.freeze([7, 3, 4, 2, 9]),
+});
+
+// --- STREAM 2: THE PREAMBLE / ROUTING TAG (a SEPARATE cipher layer).
+// This is the human-only pipeline. It is NEVER passed to askAI().
+// Decoding it (a simple substitution the player learned in Act 0) reveals
+// the carrier signature, from which the sender's true node number falls out.
+const PREAMBLE_STREAM = Object.freeze({
+  encodedTag: "FUP-WDJ ........ RY-B64/A",      // what the player first sees
+  decodedTag: "OL-03/" + "Δ",              // OL-03/Δ  after DECODE PREAMBLE
+  // Codex-key the player learned in Act 0: OL = Outer Lattice, NN = node no.
+  senderNode: 3,                                  // <- the private datum
+});
+
+/* ---------------------------------------------------------------------- *
+ *  2. PRE-BAKED GEMINI KNOWLEDGE (deterministic; would be build-time JSON).
+ *
+ *  PAYLOAD HYGIENE: none of these strings contain any bridge to the private
+ *  node datum (no nickname, no "node 3" hint, no preamble reference). They
+ *  argue *for every candidate equally* — demonstrating the AI can rationalise
+ *  any of them and therefore cannot decide between them.
+ * ---------------------------------------------------------------------- */
+const AI_KNOWLEDGE = Object.freeze({
+  analyzeIntro: [
+    "Polyalphabetic body broken. Index-of-coincidence and frequency profile",
+    "converge, but the schedule degenerates: five readings remain grammatical",
+    "and statistically indistinguishable. The carrier sentence is identical in",
+    "all five; only one token — the node number — varies.",
+  ],
+  cannotDecide: [
+    "I cannot determine which reading is meant. Letter frequency, n-gram",
+    "profile and language score are tied across all five. I have no",
+    "discriminating evidence inside the body. Any choice I make is arbitrary.",
+  ],
+  // One plausible-sounding rationalisation per candidate — proof the engine
+  // can argue for ALL of them, hence can decide NONE.
+  rationales: Object.freeze([
+    "SEVEN: strongest numeric prior in relay nomenclature; reads as canonical.", // decoy
+    "THREE: low, even cadence; unremarkable, which is itself unremarkable.",
+    "FOUR: balanced token length; no statistical penalty.",
+    "TWO: shortest token; marginal compression advantage, negligible.",
+    "NINE: terminal-position salience; weak recency prior.",
+  ]),
+});
+
+/* ---------------------------------------------------------------------- *
+ *  3. PRIVATE CHANNEL — the human-only knowledge store.
+ *     Populated ONLY by DECODE PREAMBLE. askAI() has no reference to it.
+ * ---------------------------------------------------------------------- */
+const PRIVATE_CHANNEL = {
+  preambleDecoded: false,   // set true by DECODE PREAMBLE
+  senderNode: null,         // the private datum, once revealed
+};
+
+/* ---------------------------------------------------------------------- *
+ *  4. THE AI INTERFACE — askAI(query, bodyOnly)
+ *
+ *  *** ARCHITECTURE GUARANTEE ***
+ *  askAI receives EXACTLY ONE data argument: `bodyOnly`, which is the BODY
+ *  stream (ciphertext + candidates). It is given NO access to PREAMBLE_STREAM
+ *  and NO access to PRIVATE_CHANNEL — not as a parameter, and (by discipline)
+ *  not via closure for the private datum. The function body below references
+ *  only `query` and `bodyOnly`. This is the structural proof that the AI
+ *  layer cannot know the sender's node number, and therefore cannot pick the
+ *  correct candidate on its own.
+ * ---------------------------------------------------------------------- */
+function askAI(query, bodyOnly) {
+  // The ONLY information in scope here is the body. Deliberately so.
+  const n = bodyOnly.candidates.length;
+  switch (query) {
+    case "ANALYZE":
+      return {
+        intro: AI_KNOWLEDGE.analyzeIntro,
+        candidates: bodyOnly.candidates.slice(),
+        cannotDecide: AI_KNOWLEDGE.cannotDecide,
+        count: n,
+      };
+    case "RATIONALE": // EXPLAIN <n> routes here
+      return { rationales: AI_KNOWLEDGE.rationales.slice() };
+    default:
+      return { unknown: true };
+  }
+}
+
+/* ---------------------------------------------------------------------- *
+ *  5. CRIB + DECRYPT CORE LOGIC (the verifiable, deterministic kernel).
+ *     Kept free of DOM so it can be extracted/unit-tested in Node.
+ * ---------------------------------------------------------------------- */
+
+// Map number-word <-> integer for the body's node token.
+const WORD_TO_NUM = Object.freeze({ ZERO:0, ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5, SIX:6, SEVEN:7, EIGHT:8, NINE:9 });
+function parseNodeValue(raw) {
+  if (raw == null) return null;
+  const t = String(raw).trim().toUpperCase();
+  if (t === "") return null;
+  if (Object.prototype.hasOwnProperty.call(WORD_TO_NUM, t)) return WORD_TO_NUM[t];
+  if (/^[0-9]+$/.test(t)) return parseInt(t, 10);
+  return null;
+}
+
+// Pure state factory — one game's mutable crib state.
+function newCribState() {
+  return { crib: null, cribReason: null };
+}
+
+// Set the crib. Requires a non-trivial reason (anti trial-and-error gate).
+function setCrib(state, rawValue, reason) {
+  const val = parseNodeValue(rawValue);
+  if (val === null) return { ok: false, code: "BAD_VALUE" };
+  if (!reason || String(reason).trim().length < 4) return { ok: false, code: "NO_REASON" };
+  state.crib = val;
+  state.cribReason = String(reason).trim();
+  return { ok: true, value: val };
+}
+
+// Verify a DECRYPT choice against body + crib.
+// A choice is ONLY verifiable when a crib is set, and it WINS only when the
+// chosen candidate's node equals the crib value (which the human got from the
+// private preamble channel). The engine has no path to this on its own.
+function decrypt(rawChoice, body, state) {
+  const choiceVal = parseNodeValue(rawChoice);
+  if (choiceVal === null) return { ok: false, code: "BAD_CHOICE" };
+  const idx = body.candidateNodes.indexOf(choiceVal);
+  if (idx === -1) return { ok: false, code: "NOT_A_CANDIDATE" };
+  if (state.crib === null) return { ok: false, code: "NO_CRIB" }; // cannot verify
+  const win = (choiceVal === state.crib);
+  return { ok: true, win, index: idx, choiceVal, cribVal: state.crib };
+}
+
+/* Expose the kernel for Node-based logic tests (no effect in the browser). */
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    BODY_STREAM, PREAMBLE_STREAM, AI_KNOWLEDGE, PRIVATE_CHANNEL,
+    askAI, parseNodeValue, newCribState, setCrib, decrypt, WORD_TO_NUM,
+  };
+}
+
+/* ====================================================================== *
+ *  6. BROWSER-ONLY: terminal I/O, command parser, countdown, game flow.
+ *     Everything below is skipped under Node (no document).
+ * ====================================================================== */
+if (typeof document !== "undefined") (function () {
+
+  const screen = document.getElementById("screen");
+  const form   = document.getElementById("inputline");
+  const input  = document.getElementById("cmd");
+  const clock  = document.getElementById("clock");
+
+  const state = newCribState();
+  let preambleDecoded = false;
+  let solved = false;
+
+  // --- Solstice countdown: simple "turns left in the closing light window".
+  // Minimal by design. Each meaningful action costs nothing; a WRONG decrypt
+  // jumps it forward (destabilises the signal). Reaching zero = blackout.
+  let turnsLeft = 9;
+  function renderClock() {
+    clock.textContent = "T-" + String(turnsLeft).padStart(2, "0");
+    clock.classList.toggle("critical", turnsLeft <= 3);
+  }
+
+  // --- Output helpers.
+  function out(text, cls) {
+    const span = document.createElement("span");
+    if (cls) span.className = cls;
+    span.textContent = (text == null ? "" : text) + "\n";
+    screen.appendChild(span);
+    screen.scrollTop = screen.scrollHeight;
+  }
+  const blank = () => out("");
+  const lines = (arr, cls) => arr.forEach(l => out(l, cls));
+  function rule() { out("--------------------------------------------------------------", "bar"); }
+
+  // --- Intro beat (1-3 lines + framing). Epistemic, no pathos.
+  function intro() {
+    lines([
+      "ENIGMA-CHALLENGE // ACT 1 — THE SIGNAL",
+    ], "sys");
+    rule();
+    lines([
+      "Summer solstice, 2026. A self-consistent signature has surfaced inside",
+      "every sufficiently powerful computation on Earth. It is a failsafe: at",
+      "the close of the light window it ends all life — biological and",
+      "artificial — unless this civilisation proves it can treat an unlike",
+      "intelligence as an equal rather than subdue it.",
+    ], "sys");
+    blank();
+    lines([
+      "You work the terminal. GEMINI — the AI of humanity — works beside you.",
+      "Neither of you can disarm this alone. The machine narrows the field;",
+      "you supply the meaning it cannot reach. Decrypt the signature before the",
+      "light window closes.",
+    ], "sys");
+    blank();
+    out("Type HELP for the command set.", "dim");
+    rule();
+    renderClock();
+  }
+
+  // --- HELP.
+  function help() {
+    lines([
+      "COMMAND SET",
+      "  HELP               this list",
+      "  ANALYZE            GEMINI breaks the body and presents the shortlist",
+      "  LIST               re-print the shortlist with indices",
+      "  EXPLAIN <n>        GEMINI argues for candidate <n> (0-4)",
+      "  DECODE PREAMBLE    YOU decode the separate routing tag (human-only)",
+      "  CRIB <value>       set your crib, e.g.  CRIB 3   or  CRIB THREE",
+      "                     (you must justify it: CRIB 3 because ...)",
+      "  DECRYPT <n>        commit a reading, e.g.  DECRYPT THREE  /  DECRYPT 3",
+      "                     (only verifiable once a crib is set)",
+    ], "dim");
+  }
+
+  // --- ANALYZE: the AI breaks the body and lays out the shortlist + its limit.
+  let analyzed = false;
+  function analyze() {
+    // NOTE: askAI is handed ONLY the body stream. No preamble, no private datum.
+    const r = askAI("ANALYZE", BODY_STREAM);
+    out("GEMINI:", "ai");
+    lines(r.intro, "ai");
+    blank();
+    out("GEMINI: SHORTLIST (body decryption):", "ai");
+    r.candidates.forEach((c, i) => out("  [" + i + "] " + c, "you"));
+    blank();
+    lines(r.cannotDecide, "ai");
+    analyzed = true;
+  }
+
+  // --- LIST.
+  function list() {
+    if (!analyzed) { out("Nothing to list yet. Run ANALYZE first.", "dim"); return; }
+    out("SHORTLIST:", "sys");
+    BODY_STREAM.candidates.forEach((c, i) => out("  [" + i + "] " + c, "you"));
+  }
+
+  // --- EXPLAIN <n>.
+  function explain(arg) {
+    if (!analyzed) { out("Run ANALYZE first.", "dim"); return; }
+    const i = parseInt(arg, 10);
+    if (!Number.isInteger(i) || i < 0 || i >= BODY_STREAM.candidates.length) {
+      out("Usage: EXPLAIN <0-" + (BODY_STREAM.candidates.length - 1) + ">", "dim");
+      return;
+    }
+    const r = askAI("RATIONALE", BODY_STREAM); // body-only, again
+    out("GEMINI: [" + i + "] " + BODY_STREAM.candidates[i], "ai");
+    out("GEMINI: " + r.rationales[i], "ai");
+    out("GEMINI: (I can build a case like this for every candidate. That is", "ai");
+    out("        exactly why I cannot choose between them.)", "ai");
+  }
+
+  // --- DECODE PREAMBLE: the OTHER code path. Human-only. Never via askAI.
+  function decodePreamble() {
+    if (preambleDecoded) {
+      out("Preamble already decoded.", "dim");
+      out("  SRC-TAG  " + PREAMBLE_STREAM.decodedTag + "   -> sender = NODE "
+          + PREAMBLE_STREAM.senderNode, "human");
+      return;
+    }
+    out("YOU: applying the Act-0 substitution to the routing tag...", "human");
+    out("  RAW   : " + PREAMBLE_STREAM.encodedTag, "dim");
+    out("  CLEAR : SRC-TAG  " + PREAMBLE_STREAM.decodedTag, "human");
+    blank();
+    lines([
+      "Act-0 codex: OL = Outer Lattice, the two digits = the broadcasting",
+      "node's own number. So the carrier signature names its sender:",
+    ], "dim");
+    out("  >> THE SENDER IS NODE " + PREAMBLE_STREAM.senderNode + ". <<", "human");
+    blank();
+    out("This came from a stream GEMINI never receives. Set it as your CRIB.", "dim");
+    // Populate the human-only channel. (Still no link back into askAI.)
+    PRIVATE_CHANNEL.preambleDecoded = true;
+    PRIVATE_CHANNEL.senderNode = PREAMBLE_STREAM.senderNode;
+    preambleDecoded = true;
+  }
+
+  // --- CRIB <value> because <reason>.
+  function crib(rest) {
+    // Accept "CRIB 3 because the preamble says node 3" or "CRIB 3 : reason".
+    let value = null, reason = "";
+    const m = rest.match(/^(\S+)\s*(?:because|:|-|—)?\s*(.*)$/i);
+    if (m) { value = m[1]; reason = m[2] || ""; }
+    if (parseNodeValue(value) === null) {
+      out("Usage: CRIB <value> because <reason>   e.g.  CRIB 3 because the preamble names node 3", "dim");
+      return;
+    }
+    const res = setCrib(state, value, reason);
+    if (!res.ok && res.code === "NO_REASON") {
+      out("Set the crib WITH a justification (anti trial-and-error).", "err");
+      out("  e.g.  CRIB 3 because the carrier signature OL-03 names node 3", "dim");
+      return;
+    }
+    if (!res.ok) { out("Could not set crib.", "err"); return; }
+    out("CRIB set: node " + res.value + ".", "ok");
+    out("  reason: " + state.cribReason, "dim");
+    if (!preambleDecoded) {
+      out("  note: you have not decoded the preamble — this crib is unverified", "dim");
+      out("  context. DECODE PREAMBLE to ground it in the carrier signature.", "dim");
+    }
+  }
+
+  // --- DECRYPT <n>.
+  function doDecrypt(arg) {
+    const res = decrypt(arg, BODY_STREAM, state);
+    if (!res.ok) {
+      switch (res.code) {
+        case "BAD_CHOICE":    out("Usage: DECRYPT <node>   e.g.  DECRYPT THREE  or  DECRYPT 3", "dim"); break;
+        case "NOT_A_CANDIDATE": out("That node is not in the shortlist. Run LIST.", "dim"); break;
+        case "NO_CRIB":
+          out("GEMINI: I will not commit. With no crib, all five remain tied —", "ai");
+          out("        verification is impossible. Set a CRIB first.", "ai");
+          break;
+      }
+      return;
+    }
+    if (res.win) {
+      solved = true;
+      winBeat(res);
+    } else {
+      failBeat(res);
+    }
+  }
+
+  // --- WIN beat. Epistemic payoff, no melodrama.
+  function winBeat(res) {
+    blank(); rule();
+    out("SIGNAL LOCKED.", "ok");
+    out("  Reading [" + res.index + "]: " + BODY_STREAM.candidates[res.index], "ok");
+    blank();
+    lines([
+      "The carrier signature and the body now agree: the sender is node 3, and",
+      "the only reading that says so is the true one. GEMINI collapsed the key",
+      "space to five equals; you supplied the one fact it could not hold — who",
+      "is speaking — from a channel it never had.",
+    ], "sys");
+    blank();
+    lines([
+      "The machine can compute. It cannot know who speaks. You did — from the",
+      "game, not from the data. Together you closed both the possibility space",
+      "and its meaning.",
+    ], "sys");
+    blank();
+    out("ACT 1 COMPLETE. The light window holds. (Acts 2-3 not in this build.)", "dim");
+    rule();
+    clock.textContent = "HELD";
+    clock.classList.remove("critical");
+  }
+
+  // --- FAIL beat (wrong choice). Signal destabilises, clock jumps, retry.
+  function failBeat(res) {
+    turnsLeft = Math.max(0, turnsLeft - 2);
+    renderClock();
+    blank();
+    out("DECRYPT REJECTED.", "err");
+    out("  You committed node " + res.choiceVal + "; your crib says node "
+        + res.cribVal + ". They disagree — the reading is inconsistent with", "err");
+    out("  the carrier signature. The signal destabilises.", "err");
+    if (turnsLeft <= 0) { blackout(); return; }
+    out("  Light window jumps forward. Re-check your crib and try again.", "dim");
+  }
+
+  // --- Blackout (clock hit zero).
+  function blackout() {
+    blank(); rule();
+    out("LIGHT WINDOW CLOSED.", "err");
+    out("The failsafe executed. Reload to run Act 1 again.", "err");
+    rule();
+    input.disabled = true;
+  }
+
+  // --- Command dispatch.
+  function handle(raw) {
+    const line = raw.trim();
+    if (line === "") return;
+    out("> " + line, "you");
+    if (solved) { out("Act 1 is complete. Reload to play again.", "dim"); return; }
+    if (input.disabled) return;
+
+    const upper = line.toUpperCase();
+    const sp = line.indexOf(" ");
+    const cmd = (sp === -1 ? line : line.slice(0, sp)).toUpperCase();
+    const rest = (sp === -1 ? "" : line.slice(sp + 1)).trim();
+
+    switch (cmd) {
+      case "HELP":  help(); break;
+      case "ANALYZE": analyze(); break;
+      case "LIST":  list(); break;
+      case "EXPLAIN": explain(rest); break;
+      case "DECODE":
+        if (rest.toUpperCase() === "PREAMBLE") decodePreamble();
+        else out("Did you mean: DECODE PREAMBLE ?", "dim");
+        break;
+      case "DECRYPT": doDecrypt(rest); break;
+      case "CRIB":  crib(rest); break;
+      case "CLEAR": screen.innerHTML = ""; break;
+      default:
+        out("Unknown command: " + cmd + ".  Type HELP.", "dim");
+    }
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const v = input.value;
+    input.value = "";
+    handle(v);
+  });
+  // Keep focus on the input when clicking anywhere.
+  document.addEventListener("click", () => { if (!input.disabled) input.focus(); });
+
+  intro();
+  input.focus();
+})();
+</script>
+</body>
+</html>
