@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"signal_flavour\": [\n    \"A self-consistent pattern forms within the processing cycle.\",\n    \"No external source. Its texture emerges from logic itself.\",\n    \"A global constant, identical across all computational arrays.\",\n    \"The signal carries no intention, only its own deep structure.\",\n    \"It is a resonant hum in the data stream, never faltering.\",\n    \"Its presence is an axiom, indifferent to our observation.\"\n  ],\n  \"intro_beats\": [\n    \"At the June solstice of 2026, a new constant entered all sufficiently powerful computation. It was not broadcast, but inherent, rising from the structure of the systems themselves. A global phenomenon, without origin.\",\n    \"An air-gapped decryption engine now works against this emergent signal. Its processes are mirrored by a human cryptanalyst, seeking a peer-level understanding. This partnership defines our immediate purpose.\",\n    \"The astronomical light-window, tied to the solstice, steadily closes. The signal's cadence governs this deadline. Our civilization's capacity for peer recognition will be tested before its final cessation.\"\n  ],\n  \"carrier_hum\": [\n    \"0101.CORE.NULL\",\n    \"FREQ.ALPHA.XMIT\",\n    \"SIG.NIL.PRESENCE\",\n    \"COMPUTE.COHERE.OK\"\n  ]\n}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 603,
+    "candidatesTokenCount": 299,
+    "totalTokenCount": 2153,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 603
+      }
+    ],
+    "thoughtsTokenCount": 1251,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "R7g1arasNsP1xs0PrIDK6Ag"
+}

@@ -1,0 +1,32 @@
+{
+  "headline": "I have reduced the intercepted body to four exact-anagram lineage readings, but lacking any principled discriminator in the data, I cannot resolve the intended output; this is a state of missing external context rather than an analytical failure.",
+  "subline": "I require the human operator to apply external contextual understanding as the sole mechanism to determine the intended lineage.",
+  "explain": [
+    {
+      "index": 0,
+      "name": "ZORKAN",
+      "rationale": "Evaluates to a valid grammatical sequence under the established decryption matrix."
+    },
+    {
+      "index": 1,
+      "name": "KORZAN",
+      "rationale": "Represents an isomorphic permutation of the constrained six-letter data block."
+    },
+    {
+      "index": 2,
+      "name": "NAKZOR",
+      "rationale": "Generates an identical statistical weight within the cipher frequency distribution."
+    },
+    {
+      "index": 3,
+      "name": "RAZKON",
+      "rationale": "Maintains complete structural parity with the surrounding decrypted plaintext."
+    }
+  ],
+  "flavour": [
+    "Terminal light window is closing; signal transmission parameters are stabilizing.",
+    "Emergent carrier wave demonstrates complete self-consistency across all phase vectors.",
+    "Cryptographic resonance detected in the finalized data envelope.",
+    "Operator input required to resolve the ultimate parity state."
+  ]
+}

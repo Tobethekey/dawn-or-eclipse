@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "act": 1,
+    "source_canonical": "_gate0/candidate_A.md",
+    "generated_by": "Google Gemini gemini-2.5-flash via generativelanguage.googleapis.com v1beta",
+    "generated_at": "2026-06-19",
+    "payload_hygiene": "PASS — no Gemini-authored string references the correct candidate (THREE / node 3) or any bridge (preamble/OL-03/sender identity). Verified by automated scan; see README.md.",
+    "note": "correct_index is engineering ground-truth taken from candidate_A.md, NOT from any Gemini output. It is kept here only for the deterministic verifier; it must never be passed to any AI layer or shown as a hint."
+  },
+  "shortlist": {
+    "_provenance": "candidate_A.md (canonical ship-order). NOT Gemini-generated.",
+    "order": [
+      "WE BROADCAST AS RELAY NODE SEVEN OF THE OUTER LATTICE",
+      "WE BROADCAST AS RELAY NODE THREE OF THE OUTER LATTICE",
+      "WE BROADCAST AS RELAY NODE FOUR OF THE OUTER LATTICE",
+      "WE BROADCAST AS RELAY NODE TWO OF THE OUTER LATTICE",
+      "WE BROADCAST AS RELAY NODE NINE OF THE OUTER LATTICE"
+    ],
+    "correct_index": 1
+  },
+  "gemini": {
+    "_provenance": "Google Gemini gemini-2.5-flash. Raw responses in raw/. These are the in-character 'humanity's AI' strings replayed deterministically.",
+    "headline": "Ciphertext body has been reduced to five grammatically valid plaintext candidates, but GEMINI cannot determine the intended message due to statistical indistinguishability across all available analytical measures; this is a constraint of missing operational context, not an analytical deficiency.",
+    "subline": "Human operator input regarding external operational context is required for definitive plaintext selection.",
+    "explain": [
+      {
+        "index": 0,
+        "node": "SEVEN",
+        "rationale": "Decryption key sequence recovered without statistical anomaly, yielding a pristine polyalphabetic key stream."
+      },
+      {
+        "index": 1,
+        "node": "THREE",
+        "rationale": "Plaintext exhibits an index-of-coincidence profile fully consistent with natural English language."
+      },
+      {
+        "index": 2,
+        "node": "FOUR",
+        "rationale": "Observed digraph and trigraph frequencies align precisely with standard English linguistic models."
+      },
+      {
+        "index": 3,
+        "node": "TWO",
+        "rationale": "Lexical elements and syntactic structure demonstrate full grammatical validity in standard English."
+      },
+      {
+        "index": 4,
+        "node": "NINE",
+        "rationale": "Decryption yielded a zero-residual-error floor, indicating complete and unambiguous plaintext reconstruction."
+      }
+    ],
+    "signal_flavour": [
+      "A self-consistent pattern forms within the processing cycle.",
+      "No external source. Its texture emerges from logic itself.",
+      "A global constant, identical across all computational arrays.",
+      "The signal carries no intention, only its own deep structure.",
+      "It is a resonant hum in the data stream, never faltering.",
+      "Its presence is an axiom, indifferent to our observation."
+    ],
+    "intro_beats": [
+      "At the June solstice of 2026, a new constant entered all sufficiently powerful computation. It was not broadcast, but inherent, rising from the structure of the systems themselves. A global phenomenon, without origin.",
+      "An air-gapped decryption engine now works against this emergent signal. Its processes are mirrored by a human cryptanalyst, seeking a peer-level understanding. This partnership defines our immediate purpose.",
+      "The astronomical light-window, tied to the solstice, steadily closes. The signal's cadence governs this deadline. Our civilization's capacity for peer recognition will be tested before its final cessation."
+    ],
+    "carrier_hum": [
+      "0101.CORE.NULL",
+      "FREQ.ALPHA.XMIT",
+      "SIG.NIL.PRESENCE",
+      "COMPUTE.COHERE.OK"
+    ]
+  }
+}

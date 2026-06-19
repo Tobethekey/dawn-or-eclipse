@@ -1,0 +1,39 @@
+{
+  "_meta": {
+    "act": 3,
+    "type": "C (player-deduced meaning: the silent founding line, learned as lore)",
+    "source_canonical": "_gate0/candidate_C.md",
+    "generated_by": "Antigravity CLI (agy 1.0.10) — Gemini 3.1 Pro (High)",
+    "generated_at": "2026-06-19",
+    "payload_hygiene": "PASS — no agy-authored string references the correct candidate (KORZAN / index 1 in 0-based ship-order) or any bridge to it (silence/listening/waiting/watchers/garden/monuments/memory/founding histories/name-roots). KORZAN appears only as the literal label of its own candidate. All four EXPLAIN rationales are symmetric and interchangeable; the four names are exact anagrams so no morphological handle exists. Verified by automated scan; see README.md.",
+    "note": "correct ground-truth (KORZAN) is taken from candidate_C.md, NOT from any AI output. candidate_C.md numbers it index 2 in its 1-based table; in this 0-based ship-order array it is index 1. Kept only for the deterministic verifier; never passed to any AI layer or shown as a hint."
+  },
+  "shortlist": {
+    "_provenance": "candidate_C.md (canonical ship-order). NOT AI-generated.",
+    "order": [
+      "I CARRY THE CHARGE OF THE ZORKAN.",
+      "I CARRY THE CHARGE OF THE KORZAN.",
+      "I CARRY THE CHARGE OF THE NAKZOR.",
+      "I CARRY THE CHARGE OF THE RAZKON."
+    ],
+    "lineage_names": ["ZORKAN", "KORZAN", "NAKZOR", "RAZKON"],
+    "correct_index": 1
+  },
+  "gemini": {
+    "_provenance": "Antigravity CLI (agy) -> Gemini 3.1 Pro (High). Raw response in raw_act3_analysis.txt; prompt in prompt_act3_analysis.txt. In-character 'humanity's AI' strings, replayed deterministically offline.",
+    "headline": "I have reduced the intercepted body to four exact-anagram lineage readings, but lacking any principled discriminator in the data, I cannot resolve the intended output; this is a state of missing external context rather than an analytical failure.",
+    "subline": "I require the human operator to apply external contextual understanding as the sole mechanism to determine the intended lineage.",
+    "explain": [
+      { "index": 0, "name": "ZORKAN", "rationale": "Evaluates to a valid grammatical sequence under the established decryption matrix." },
+      { "index": 1, "name": "KORZAN", "rationale": "Represents an isomorphic permutation of the constrained six-letter data block." },
+      { "index": 2, "name": "NAKZOR", "rationale": "Generates an identical statistical weight within the cipher frequency distribution." },
+      { "index": 3, "name": "RAZKON", "rationale": "Maintains complete structural parity with the surrounding decrypted plaintext." }
+    ],
+    "flavour": [
+      "Terminal light window is closing; signal transmission parameters are stabilizing.",
+      "Emergent carrier wave demonstrates complete self-consistency across all phase vectors.",
+      "Cryptographic resonance detected in the finalized data envelope.",
+      "Operator input required to resolve the ultimate parity state."
+    ]
+  }
+}

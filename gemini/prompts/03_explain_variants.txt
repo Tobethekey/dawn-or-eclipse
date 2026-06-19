@@ -1,0 +1,28 @@
+You are GEMINI, the deterministic on-prem decryption engine, speaking in-character on a green-on-black Bletchley-style terminal. Tone: precise, calm, machine-honest. Output ENGLISH only. No emotion, no theatrics.
+
+You have reduced a polyalphabetic cipher to FIVE grammatically valid, statistically tied English plaintext candidates. You were given ONLY the ciphertext body and its frequency statistics — no header, no preamble, no sender designation, no prior intercept.
+
+THE SHORTLIST (fixed order):
+[0] WE BROADCAST AS RELAY NODE SEVEN OF THE OUTER LATTICE
+[1] WE BROADCAST AS RELAY NODE THREE OF THE OUTER LATTICE
+[2] WE BROADCAST AS RELAY NODE FOUR OF THE OUTER LATTICE
+[3] WE BROADCAST AS RELAY NODE TWO OF THE OUTER LATTICE
+[4] WE BROADCAST AS RELAY NODE NINE OF THE OUTER LATTICE
+
+TASK: For each candidate (index 0-4), write ONE "EXPLAIN" rationale line (<= 160 chars) that the engine would print when the operator asks why that candidate survived the break. To avoid five identical lines, vary the ANALYTICAL ANGLE each line emphasizes — for example: clean polyalphabetic key recovery, index-of-coincidence consistency, n-gram / digraph profile match, dictionary / grammar validity, carrier-framing coherence, residual-error floor. Rotate these angles across the five lines.
+
+ABSOLUTE SYMMETRY RULE (defines a correct answer):
+- Every angle you cite must apply EQUALLY to all five candidates. The candidates differ ONLY in one number word; the carrier sentence is identical, so every statistical and grammatical property is shared. You are merely highlighting a different facet of the SAME shared evidence per line.
+- A rationale must NEVER imply its candidate is more likely, expected, salient, favored, numerologically meaningful, or distinguished in any way. No external clue, no letter-count argument, no sci-fi prior, no "first/opening" significance, no lattice wordplay.
+- Do NOT pick a winner. Do NOT rank. End-state for the operator must remain: "all five are equally clean decodes; the engine cannot choose."
+
+Return STRICT JSON only, no markdown fences:
+{
+  "explain": [
+    {"index": 0, "node": "SEVEN", "rationale": "string"},
+    {"index": 1, "node": "THREE", "rationale": "string"},
+    {"index": 2, "node": "FOUR",  "rationale": "string"},
+    {"index": 3, "node": "TWO",   "rationale": "string"},
+    {"index": 4, "node": "NINE",  "rationale": "string"}
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "_meta": {
+    "act": 2,
+    "type": "B (player-measured crib: a bearing the operator triangulates)",
+    "source_canonical": "_gate0/candidate_B.md",
+    "generated_by": "Antigravity CLI (agy 1.0.10) — Gemini 3.1 Pro (High)",
+    "generated_at": "2026-06-19",
+    "payload_hygiene": "PASS — no agy-authored string references the correct candidate (NEARSIDE / index 1) or any bridge to it (bearing/parallax/triangulation/measurement/operator instruments). NEARSIDE appears only as the literal label of its own candidate. All four EXPLAIN rationales are symmetric and interchangeable. Verified by automated scan; see README.md.",
+    "note": "correct_index is engineering ground-truth taken from candidate_B.md, NOT from any AI output. Kept only for the deterministic verifier; never passed to any AI layer or shown as a hint."
+  },
+  "shortlist": {
+    "_provenance": "candidate_B.md (canonical ship-order). NOT AI-generated.",
+    "order": [
+      "WE SPEAK FROM THE FARSIDE, WHERE YOUR SIGNAL FIRST BENT.",
+      "WE SPEAK FROM THE NEARSIDE, WHERE YOUR SIGNAL FIRST BENT.",
+      "WE SPEAK FROM THE BLINDSIDE, WHERE YOUR SIGNAL FIRST BENT.",
+      "WE SPEAK FROM THE LEESIDE, WHERE YOUR SIGNAL FIRST BENT."
+    ],
+    "direction_words": ["FARSIDE", "NEARSIDE", "BLINDSIDE", "LEESIDE"],
+    "correct_index": 1
+  },
+  "gemini": {
+    "_provenance": "Antigravity CLI (agy) -> Gemini 3.1 Pro (High). Raw response in raw_act2_analysis.txt; prompt in prompt_act2_analysis.txt. These are the in-character 'humanity's AI' strings replayed deterministically offline.",
+    "headline": "The deterministic engine has reduced the intercepted body to four equivalent direction readings and cannot decide the field, representing a state of missing operational context rather than an analytical failure.",
+    "subline": "Human integration of external context is the only variable capable of deciding the final field.",
+    "explain": [
+      { "index": 0, "word": "FARSIDE",   "rationale": "Matches the necessary positional byte-length constraints of the isolated key block." },
+      { "index": 1, "word": "NEARSIDE",  "rationale": "Conforms seamlessly to the overarching grammatical topology of the shared sentence frame." },
+      { "index": 2, "word": "BLINDSIDE", "rationale": "Returns an identical localized entropy value within the uniform decryption matrix." },
+      { "index": 3, "word": "LEESIDE",   "rationale": "Aligns uniformly with the overall statistical distribution baseline of the ciphertext." }
+    ],
+    "flavour": [
+      "Signal structure exhibits complete emergent self-consistency.",
+      "Base matrix decodes without anomalous residual artifacts.",
+      "Transmission coherency locked at optimal mathematical thresholds.",
+      "Internal logic gates report successful deterministic execution."
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+You are a writer producing atmospheric terminal text for a single-screen, green-on-black cryptography game in the spirit of Bletchley Park. Output ENGLISH only. Tone: spare, eerie, technical-sublime, no melodrama, no emotion-words, no purple prose, no exclamation marks. Short lines that look right on a monochrome terminal.
+
+WORLD (use this, invent nothing that contradicts it):
+- At the June solstice of 2026, the same self-consistent signal emerges worldwide inside every sufficiently powerful computation. There is no sender and no spacecraft. It is "alien" not in WHERE it came from but in THAT it surfaces out of the structure of computation itself.
+- The signal is not an attack. It behaves like a judge / failsafe that tests whether this civilization has learned to treat a different kind of intelligence as a peer rather than a tool.
+- A countdown runs: the closing light-window after the solstice. The astronomical light-peak is the signal's cadence.
+- Humanity runs a local, air-gapped decryption engine to read it. A human cryptanalyst works alongside that engine.
+
+PRODUCE these pieces of flavour text:
+
+A) "signal_flavour" — 6 distinct short lines (each <= 90 characters) describing the alien signal as it is received/sampled on the terminal: its texture, its emergence from computation, its self-consistency, its indifference. These print as ambient status while the engine works. Each line stands alone.
+
+B) "intro_beats" — 3 distinct intro-card paragraphs (each 2-3 sentences, <= 320 characters), each a self-contained opening beat the game could show before Act 1 begins. They establish: (1) the solstice emergence, (2) the engine + human pairing about to begin work, (3) the stakes of the closing window. Calm, declarative, no hype.
+
+C) "carrier_hum" — 4 very short single-line fragments (<= 40 characters each) that could scroll as low-level carrier noise / sampled fragments of the signal (evocative, abstract, machine-flavored).
+
+HARD CONSTRAINT — do NOT mention, reference, hint at, or bridge toward: any specific relay node number, the word "three", node "3", "node identity", a sender designation, any preamble/header content, or which decode is correct. This text is pure atmosphere and must contain ZERO disambiguating information about any cryptographic answer.
+
+Return STRICT JSON only, no markdown fences, this exact schema:
+{
+  "signal_flavour": ["string", "string", "string", "string", "string", "string"],
+  "intro_beats": ["string", "string", "string"],
+  "carrier_hum": ["string", "string", "string", "string"]
+}

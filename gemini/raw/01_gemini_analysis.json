@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"headline\": \"Ciphertext body has been reduced to five grammatically valid plaintext candidates, but GEMINI cannot determine the intended message due to statistical indistinguishability across all available analytical measures; this is a constraint of missing operational context, not an analytical deficiency.\",\n  \"subline\": \"Human operator input regarding external operational context is required for definitive plaintext selection.\",\n  \"explain\": [\n    {\"index\": 0, \"node\": \"SEVEN\", \"rationale\": \"Candidate zero, 'WE BROADCAST AS RELAY NODE SEVEN OF THE OUTER LATTICE', presents as a grammatically sound and internally consistent decode.\"},\n    {\"index\": 1, \"node\": \"THREE\", \"rationale\": \"Candidate one, 'WE BROADCAST AS RELAY NODE THREE OF THE OUTER LATTICE', presents as a grammatically sound and internally consistent decode.\"},\n    {\"index\": 2, \"node\": \"FOUR\",  \"rationale\": \"Candidate two, 'WE BROADCAST AS RELAY NODE FOUR OF THE OUTER LATTICE', presents as a grammatically sound and internally consistent decode.\"},\n    {\"index\": 3, \"node\": \"TWO\",   \"rationale\": \"Candidate three, 'WE BROADCAST AS RELAY NODE TWO OF THE OUTER LATTICE', presents as a grammatically sound and internally consistent decode.\"},\n    {\"index\": 4, \"node\": \"NINE\",  \"rationale\": \"Candidate four, 'WE BROADCAST AS RELAY NODE NINE OF THE OUTER LATTICE', presents as a grammatically sound and internally consistent decode.\"}\n  ]\n}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 818,
+    "candidatesTokenCount": 340,
+    "totalTokenCount": 2766,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 818
+      }
+    ],
+    "thoughtsTokenCount": 1608,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "L7g1aoj8N8TYxs0PiNaSaQ"
+}

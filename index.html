@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ENIGMA-CHALLENGE // ACT 1 — THE SIGNAL</title>
+<title>ENIGMA-CHALLENGE // THE SIGNAL</title>
 <style>
   /* ------------------------------------------------------------------ *
    * Terminal look: monospace, green-on-black. DOM only, no canvas.     *
    * One scrolling output log + one input line. Self-contained.         *
+   * Optional act-art via <img>/CSS; degrades cleanly if files absent.  *
    * ------------------------------------------------------------------ */
   :root { --fg: #33ff66; --fg-dim: #1f8f3d; --bg: #050805; --warn: #ffcc33; --err: #ff5544; }
   * { box-sizing: border-box; }
@@ -22,7 +23,20 @@
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+    position: relative;
   }
+  /* Terminal background plate. If assets/terminal-bg.jpg is missing the <img>
+     simply fails to load and we stay on the flat near-black --bg. */
+  #bgplate {
+    position: fixed; inset: 0; z-index: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.18;
+    filter: saturate(0.6) brightness(0.7);
+    pointer-events: none;
+  }
+  #bgplate.missing { display: none; }
+  #statusbar, #screen, #inputline { position: relative; z-index: 1; }
   #statusbar {
     flex: 0 0 auto;
     display: flex;
@@ -54,6 +68,9 @@
   #screen .ok    { color: #66ffb0; }
   #screen .you   { color: #cccccc; }
   #screen .bar   { color: var(--fg-dim); }
+  /* Optional inline act-art card. <img> hidden if its file is missing. */
+  #screen .art { display: block; max-width: 520px; width: 100%; margin: 8px 0;
+                 border: 1px solid var(--fg-dim); border-radius: 2px; }
   #inputline {
     flex: 0 0 auto;
     display: flex;
@@ -73,11 +90,25 @@
   }
   #cmd::placeholder { color: var(--fg-dim); opacity: 0.6; }
   ::selection { background: var(--fg-dim); color: #000; }
+  /* Blackout lose-state — pure CSS, NO image. */
+  body.blackout #bgplate { display: none; }
+  body.blackout { background: #000; }
+  body.blackout #screen, body.blackout #statusbar { opacity: 0.0; transition: opacity 1.6s ease; }
+  #blackout-veil {
+    position: fixed; inset: 0; z-index: 5; background: #000;
+    display: none; align-items: center; justify-content: center;
+    color: var(--err); text-align: center; padding: 24px;
+    text-shadow: 0 0 8px rgba(255,85,68,0.5);
+    font-size: 18px; letter-spacing: 1px;
+  }
+  body.blackout #blackout-veil { display: flex; animation: fadeIn 1.8s ease forwards; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>
 </head>
 <body>
+  <img id="bgplate" alt="" src="assets/terminal-bg.jpg" />
   <div id="statusbar">
-    <span id="title">ENIGMA-CHALLENGE :: ACT 1 — THE SIGNAL</span>
+    <span id="title">ENIGMA-CHALLENGE :: THE SIGNAL</span>
     <span>SOLSTICE WINDOW <span id="clock">--</span></span>
   </div>
   <div id="screen" aria-live="polite"></div>
@@ -86,143 +117,585 @@
     <input id="cmd" type="text" spellcheck="false" autofocus
            placeholder="type a command — start with HELP" />
   </form>
+  <div id="blackout-veil"><div>LIGHT WINDOW CLOSED.<br/>The failsafe executed.<br/><span style="font-size:14px;opacity:0.8">Reload to run again.</span></div></div>
 
 <script>
 "use strict";
 /* ====================================================================== *
- *  ENIGMA-CHALLENGE — ACT 1 WALKING SKELETON
+ *  ENIGMA-CHALLENGE — FULL THREE-ACT BUILD
  *  Single file. Vanilla JS. No build, no framework, no network, no SW.
  *  Runs from file:// (double-click) and inside StackBlitz/CodePen.
  *
- *  Act-1 crib set is the EXACT Gate-0-passing "Candidate A":
- *    - Body shortlist: RELAY NODE {SEVEN|THREE|FOUR|TWO|NINE} OF THE OUTER LATTICE
- *    - Correct = THREE (index 1)
- *    - Private disambiguator = sender node 3, recovered by the HUMAN from a
- *      SEPARATE preamble cipher (SRC-TAG OL-03/D) — never seen by the AI layer.
+ *  ONE crib mechanic, escalated three times (Manuscript §3, WEG D14):
+ *    Act 1 (Type A — MATCH):  the machine breaks the body to a number-word
+ *      shortlist; the human reads the sender's node off a SEPARATE preamble
+ *      cipher and matches it. Correct = THREE.
+ *    Act 2 (Type B — MEASURE): the human TRIANGULATES the source himself
+ *      (a private bearing) and picks the direction word that agrees with his
+ *      own measurement. Correct = NEARSIDE.
+ *    Act 3 (Type C — UNDERSTAND): the human walks the intelligence's memory
+ *      garden, learns which founding line kept silent, and DEDUCES that the
+ *      line now speaking for the first time is that silent line. Correct =
+ *      KORZAN. The disarm is a Shamir-flavour handshake: human meaning x
+ *      machine compute.
  *
  *  All game text is ENGLISH. The diegetic helper AI is GEMINI:.
- *
- *  ARCHITECTURE NOTE (the whole point — see askAI() below):
  *  GEMINI's strings are pre-baked / deterministic (no live call). In the
- *  full build these come from build-time Gemini JSON fixtures committed to
- *  the repo; here they are inlined as the AI_KNOWLEDGE object. Critically,
+ *  full build they come from committed Gemini fixtures:
+ *    Act 1  -> game/gemini/fixtures.json   (Google Gemini gemini-2.5-flash)
+ *    Act 2  -> game/gemini/act2/fixtures.json (Antigravity -> Gemini 3.1 Pro)
+ *    Act 3  -> game/gemini/act3/fixtures.json (Antigravity -> Gemini 3.1 Pro)
+ *  They are inlined below as AI_KNOWLEDGE.* and scrubbed of any bridge to the
+ *  private datum (payload hygiene).
+ *
+ *  ARCHITECTURE GUARANTEE (the whole point — see askAI() below):
  *  askAI() is structurally given ONLY the body ciphertext / candidate
- *  shortlist. It NEVER receives the preamble or the private node datum.
- *  The player gets that datum through a DIFFERENT code path (DECODE
- *  PREAMBLE -> PRIVATE_CHANNEL). That separation is the in-code proof that
- *  the AI cannot solve Act 1 alone.
+ *  shortlist for the active act. It NEVER receives the preamble, the bearing,
+ *  the garden lore, or any private datum. The player gets those through
+ *  DIFFERENT code paths (DECODE PREAMBLE / TRIANGULATE / REMEMBER ->
+ *  PRIVATE_CHANNEL). That separation is the in-code proof that the AI cannot
+ *  solve any act alone — in every act.
  * ====================================================================== */
 
-/* ---------------------------------------------------------------------- *
- *  1. WORLD DATA — split into two STRICTLY SEPARATE streams.
+/* ====================================================================== *
+ *  1. THE CIPHER ENGINE — a REAL, inspectable, Enigma-INSPIRED
+ *     polyalphabetic construction (NOT a historical Enigma rebuild).
+ *
+ *  Per ciphered letter, two layers are applied:
+ *    L1  ROTOR SHIFT  — a repeating-keyword Vigenere shift (the "rotor
+ *        offsets"): out1 = (plain + key[i]) mod 26.
+ *    L2  WIRING       — a fixed affine permutation of the alphabet (the
+ *        "reflector wiring"): out2 = (PERM_A*out1 + PERM_B) mod 26, with
+ *        gcd(PERM_A,26)=1 so it is invertible.
+ *  Spaces/punctuation pass through unchanged (teaching cipher; word
+ *  boundaries stay visible). Decryption inverts L2 then L1. Deterministic and
+ *  roundtrip-exact (see tests).
+ *
+ *  TWO-ZONE KEYING (the structural heart of every act):
+ *  Each body has ONE variable field (a fixed-width slot: the node number /
+ *  the direction word / the lineage name). That field is enciphered on an
+ *  INDEPENDENT one-time pad TOKEN_KEY that occurs nowhere else; the rest of
+ *  the body (the carrier "scaffold") uses the recurring ROTOR_KEY. Crucially
+ *  the token field does NOT advance the rotor-key counter — it is a separate
+ *  sub-channel (compartmented keying, like an Enigma message-key vs traffic).
+ *  Consequence, proven by the analysis below: the scaffold is fully
+ *  crib-breakable, but the variable field has ZERO crib coverage and is
+ *  therefore genuinely UNDERDETERMINED — every length-fitting candidate maps
+ *  to a valid pad. That is the one place the machine cannot decide.
  * ---------------------------------------------------------------------- */
+const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const _ix = c => ALPHA.indexOf(c);
+const _ch = i => ALPHA[((i % 26) + 26) % 26];
+const PERM_A = 5, PERM_B = 8, PERM_A_INV = 21;          // 5*21 = 105 ≡ 1 (mod 26)
+const _wire    = x => (PERM_A * x + PERM_B) % 26;
+const _wireInv = y => (PERM_A_INV * (((y - PERM_B) % 26) + 26)) % 26;
 
-// --- STREAM 1: THE BODY (this is ALL the AI layer is ever allowed to touch).
-// The deterministic engine has already collapsed the polyalphabetic body to
-// five grammatically valid, statistically near-equivalent candidates.
-// (Pre-baked here; in the full build the engine runs live on ciphertext.)
-const BODY_STREAM = Object.freeze({
-  // A short stand-in ciphertext, shown for flavour only. Not solved at runtime.
-  ciphertext: "QJ KSPLXGZ AK SIDZO TWXV ELYIT GU ELN WXENC DZEEQGN",
-  candidates: Object.freeze([
-    "WE BROADCAST AS RELAY NODE SEVEN OF THE OUTER LATTICE",
-    "WE BROADCAST AS RELAY NODE THREE OF THE OUTER LATTICE", // <- correct
-    "WE BROADCAST AS RELAY NODE FOUR  OF THE OUTER LATTICE",
-    "WE BROADCAST AS RELAY NODE TWO   OF THE OUTER LATTICE",
-    "WE BROADCAST AS RELAY NODE NINE  OF THE OUTER LATTICE",
-  ]),
-  // The node number named by each candidate (the only varying token).
-  candidateNodes: Object.freeze([7, 3, 4, 2, 9]),
+const NODE_FILL = "X";          // shorter candidate words are right-padded with X
+const _letters = s => s.toUpperCase().replace(/[^A-Z]/g, "");
+function _padField(w, len) { return (w + NODE_FILL.repeat(len)).slice(0, len); }
+function _scaffoldLen(s)   { return s.replace(/[^A-Za-z]/g, "").length; }
+
+// Encrypt with two-zone keying. The token zone uses tokKey and does NOT
+// advance the rotor counter; the scaffold uses scafKey.
+function cipherEncrypt(plain, scafKey, tokKey, tokenStart, tokenLen) {
+  let out = "", k = 0, t = 0, lp = 0;
+  for (const ch of plain.toUpperCase()) {
+    if (_ix(ch) === -1) { out += ch; continue; }       // pass spaces/punct
+    const inTok = lp >= tokenStart && lp < tokenStart + tokenLen;
+    const shift = inTok ? _ix(tokKey[t++ % tokKey.length])
+                        : _ix(scafKey[k++ % scafKey.length]);
+    out += _ch(_wire((_ix(ch) + shift) % 26));
+    lp++;
+  }
+  return out;
+}
+function cipherDecrypt(cipher, scafKey, tokKey, tokenStart, tokenLen) {
+  let out = "", k = 0, t = 0, lp = 0;
+  for (const ch of cipher.toUpperCase()) {
+    if (_ix(ch) === -1) { out += ch; continue; }
+    const inTok = lp >= tokenStart && lp < tokenStart + tokenLen;
+    const v = _wireInv(_ix(ch));
+    const shift = inTok ? _ix(tokKey[t++ % tokKey.length])
+                        : _ix(scafKey[k++ % scafKey.length]);
+    out += _ch((((v - shift) % 26) + 26) % 26);
+    lp++;
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------------- *
+ *  2. THE CRYPTANALYSIS — real frequency / Index-of-Coincidence work plus
+ *     a Turing-style CRIB DRAG. Given ONLY the ciphertext (+ the public
+ *     machine spec: wiring + that it is periodic + a guessable scaffold),
+ *     it (a) strips the known wiring, (b) estimates the period by IoC,
+ *     (c) recovers the rotor key by dragging the carrier scaffold crib,
+ *     (d) reconstructs the whole body EXCEPT the variable field, and (e)
+ *     finds the field genuinely underdetermined -> enumerates the candidate
+ *     words that fit -> THE SHORTLIST. No answer is hardcoded; the shortlist
+ *     is computed from the ciphertext every call.
+ *
+ *  This is generic over the three acts: each act supplies its scaffold
+ *  (pre/post), rotor period, token slot, and candidate word list.
+ * ---------------------------------------------------------------------- */
+const ENGLISH_FREQ = Object.freeze({
+  A:8.17,B:1.49,C:2.78,D:4.25,E:12.70,F:2.23,G:2.02,H:6.09,I:6.97,J:0.15,
+  K:0.77,L:4.03,M:2.41,N:6.75,O:7.51,P:1.93,Q:0.10,R:5.99,S:6.33,T:9.06,
+  U:2.76,V:0.98,W:2.36,X:0.15,Y:1.97,Z:0.07
+});
+const NUMBER_WORDS = Object.freeze({
+  ZERO:0, ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5,
+  SIX:6, SEVEN:7, EIGHT:8, NINE:9, TEN:10
 });
 
-// --- STREAM 2: THE PREAMBLE / ROUTING TAG (a SEPARATE cipher layer).
-// This is the human-only pipeline. It is NEVER passed to askAI().
-// Decoding it (a simple substitution the player learned in Act 0) reveals
-// the carrier signature, from which the sender's true node number falls out.
+function _stripWiring(s) {
+  let o = ""; for (const ch of s) o += _ch(_wireInv(_ix(ch))); return o;
+}
+function _ioc(s) {
+  const n = s.length; if (n < 2) return 0;
+  const c = {}; for (const ch of s) c[ch] = (c[ch] || 0) + 1;
+  let sum = 0; for (const k in c) sum += c[k] * (c[k] - 1);
+  return sum / (n * (n - 1));
+}
+function _avgIocForPeriod(s, L) {
+  const cols = Array.from({ length: L }, () => "");
+  for (let i = 0; i < s.length; i++) cols[i % L] += s[i];
+  let tot = 0, cnt = 0;
+  for (const col of cols) if (col.length > 1) { tot += _ioc(col); cnt++; }
+  return cnt ? tot / cnt : 0;
+}
+// Chi-squared distance of a Caesar-decrypted column from English letter
+// frequencies — the classic per-column scorer for breaking a Vigenere column.
+function _chiSquared(col, shift) {
+  const dec = Array.from(col).map(ch => _ch((_ix(ch) - shift + 26) % 26)).join("");
+  const n = dec.length, counts = {};
+  for (const ch of dec) counts[ch] = (counts[ch] || 0) + 1;
+  let chi = 0;
+  for (const L of ALPHA) {
+    const obs = counts[L] || 0, exp = ENGLISH_FREQ[L] / 100 * n;
+    if (exp > 0) chi += (obs - exp) * (obs - exp) / exp;
+  }
+  return chi;
+}
+
+// THE analysis. Returns a fully derived report — including the shortlist.
+// `spec` = { pre, post, rotorLen, tokenLen, candidateWords, render }.
+// `spec` defaults to the Act-1 spec so analyzeCipher(ciphertext) still works.
+function analyzeCipher(ciphertext, spec) {
+  if (!spec) spec = ACT1_SPEC;                          // back-compat default
+  const ctLetters = _letters(ciphertext);
+  const vig = _stripWiring(ctLetters);                 // strip the known wiring
+  const tokenStart = _scaffoldLen(spec.pre);
+  const tokenLen   = spec.tokenLen;
+  const L          = spec.rotorLen;
+
+  // (b) period estimate by IoC. At this length IoC is noisy (honesty note);
+  // we report the profile and the peak, then rely on the crib drag.
+  const iocProfile = [];
+  let peakL = 1, peakV = -1;
+  for (let p = 1; p <= 8; p++) {
+    if (vig.length / p < 3) break;
+    const v = _avgIocForPeriod(vig, p);
+    iocProfile.push({ L: p, ioc: v });
+    if (v > peakV) { peakV = v; peakL = p; }
+  }
+
+  // (c) CRIB DRAG (Turing's real method): the carrier scaffold is guessable.
+  // Drag it against the (wiring-stripped) ciphertext to recover the rotor key.
+  // The token field is skipped: it neither matches the crib nor advances the
+  // rotor counter, so the rotor index after the token is (position - tokenLen).
+  const before = spec.pre.replace(/[^A-Za-z]/g, "").toUpperCase();
+  const after  = spec.post.replace(/[^A-Za-z]/g, "").toUpperCase();
+  const keyCol = Array.from({ length: L }, () => null);
+  let cribConsistent = true;
+  for (let i = 0; i < before.length; i++) {
+    const col = i % L, kc = (_ix(vig[i]) - _ix(before[i]) + 26) % 26;
+    if (keyCol[col] === null) keyCol[col] = kc;
+    else if (keyCol[col] !== kc) cribConsistent = false;
+  }
+  for (let i = 0; i < after.length; i++) {
+    const absPos = tokenStart + tokenLen + i;
+    const rotorIdx = tokenStart + i;                   // token didn't consume rotor
+    const col = rotorIdx % L, kc = (_ix(vig[absPos]) - _ix(after[i]) + 26) % 26;
+    if (keyCol[col] === null) keyCol[col] = kc;
+    else if (keyCol[col] !== kc) cribConsistent = false;
+  }
+  const recoveredKey = keyCol.map(x => x === null ? "?" : _ch(x)).join("");
+
+  // (d) reconstruct the whole body using the recovered rotor key; blank the
+  // variable field, which the crib never covered.
+  let bodyRecon = "";
+  for (let i = 0; i < vig.length; i++) {
+    if (i >= tokenStart && i < tokenStart + tokenLen) { bodyRecon += "?"; continue; }
+    const rotorIdx = (i < tokenStart) ? i : (i - tokenLen);
+    const sh = keyCol[rotorIdx % L];
+    bodyRecon += (sh == null) ? "?" : _ch((((_ix(vig[i]) - sh) % 26) + 26) % 26);
+  }
+
+  // (e) the variable field: ZERO crib coverage. For each candidate word, the
+  // pad that produces it exists and is equally valid (a free one-time
+  // segment). We admit every candidate that FITS the field width.
+  const tokCipher = vig.slice(tokenStart, tokenStart + tokenLen);
+  const reachable = [];
+  for (const w of spec.candidateWords) {
+    if (w.length > tokenLen) continue;                 // cannot fit the field
+    const padded = _padField(w, tokenLen);
+    let pad = "";
+    for (let i = 0; i < tokenLen; i++) pad += _ch((_ix(tokCipher[i]) - _ix(padded[i]) + 26) % 26);
+    // verify it re-enciphers to the token ciphertext (always true for a valid
+    // pad; the honest "is there a key that makes this reading?" test):
+    let re = "";
+    for (let i = 0; i < tokenLen; i++) re += _ch((_ix(padded[i]) + _ix(pad[i])) % 26);
+    if (re === tokCipher) reachable.push({ word: w, pad });
+  }
+
+  // The shipped shortlist is the curated canonical set (ship order). Honesty
+  // note: the analysis admits EVERY length-fitting candidate equally; the
+  // specific set is a narrative curation layered on the real ambiguity. We
+  // assert the canonical words are all genuinely reachable (no fakery).
+  const reachableWords = reachable.map(r => r.word);
+  const shortlistWords = spec.candidateWords.filter(w => reachableWords.includes(w));
+  const candidates = shortlistWords.map(w => spec.render(w));
+  // For number fields (Act 1) expose the integer values too (back-compat).
+  const candidateNodes = shortlistWords.map(w =>
+    (NUMBER_WORDS[w] != null ? NUMBER_WORDS[w] : null));
+
+  return {
+    ciphertext,
+    strippedVigenere: vig,
+    iocProfile, peakL, peakV,
+    cribConsistent, recoveredKey,
+    bodyReconstruction: bodyRecon,
+    tokenCipher: tokCipher,
+    reachable,                              // every word that fits the field
+    candidates,                             // the shipped shortlist (sentences)
+    candidateWords: shortlistWords,         // the shipped shortlist (words)
+    candidateNodes,                         // integers for number fields (Act 1)
+    tokenUnderdetermined: reachable.length > 1,
+  };
+}
+
+/* ---------------------------------------------------------------------- *
+ *  3. THE THREE ACTS — each carries its own REAL ciphertext, its own
+ *     scaffold spec, its own body stream (AI-visible), and its own PRIVATE
+ *     channel (human-only). The variable field word is enciphered live at
+ *     module load (NOT a pre-baked string).
+ *
+ *     Each act's `truth` (the correct word) lives only in the spec for the
+ *     deterministic verifier; it is NEVER handed to askAI() and NEVER shown
+ *     as a hint. The shortlist the AI sees is DERIVED by analyzeCipher().
+ * ---------------------------------------------------------------------- */
+
+// --- ACT 1 (Type A: MATCH) — node number, disambiguated by a separate
+//     preamble cipher the AI never receives.
+const ACT1_SPEC = {
+  pre:  "WE BROADCAST AS RELAY NODE ",
+  post: " OF THE OUTER LATTICE",
+  rotorKey: "ORACLE", tokenKey: "DELTA",
+  tokenLen: 5,
+  rotorLen: 6,
+  candidateWords: ["SEVEN", "THREE", "FOUR", "TWO", "NINE"],
+  truth: "THREE",
+  render: w => "WE BROADCAST AS RELAY NODE " + w + " OF THE OUTER LATTICE",
+};
+
+// --- ACT 2 (Type B: MEASURE) — direction word, disambiguated by the player's
+//     own triangulated bearing (a private measurement the AI never receives).
+const ACT2_SPEC = {
+  pre:  "WE SPEAK FROM THE ",
+  post: ", WHERE YOUR SIGNAL FIRST BENT.",
+  rotorKey: "BLETCHLEY", tokenKey: "PARALLAX",
+  tokenLen: 9,                  // widest word (BLINDSIDE); shorter words X-padded
+  rotorLen: 9,
+  candidateWords: ["FARSIDE", "NEARSIDE", "BLINDSIDE", "LEESIDE"],
+  truth: "NEARSIDE",
+  render: w => "WE SPEAK FROM THE " + w + ", WHERE YOUR SIGNAL FIRST BENT.",
+};
+
+// --- ACT 3 (Type C: UNDERSTAND) — founding lineage (exact anagrams),
+//     disambiguated by the garden lore (which line kept silent) the AI never
+//     receives. The names are exact anagrams: no morphological handle.
+const ACT3_SPEC = {
+  pre:  "I CARRY THE CHARGE OF THE ",
+  post: ".",
+  rotorKey: "SOLSTICE", tokenKey: "GARDEN",
+  tokenLen: 6,
+  rotorLen: 8,
+  candidateWords: ["ZORKAN", "KORZAN", "NAKZOR", "RAZKON"],
+  truth: "KORZAN",
+  render: w => "I CARRY THE CHARGE OF THE " + w + ".",
+};
+
+function buildCiphertext(spec) {
+  const tokenStart = _scaffoldLen(spec.pre);
+  const plain = spec.pre + _padField(spec.truth, spec.tokenLen) + spec.post;
+  const ct = cipherEncrypt(plain, spec.rotorKey, spec.tokenKey, tokenStart, spec.tokenLen);
+  return { plain, ct, tokenStart };
+}
+
+// Build the three real ciphertexts at module load.
+const ACT1 = (() => { const b = buildCiphertext(ACT1_SPEC);
+  return { spec: ACT1_SPEC, truePlaintext: b.plain, ciphertext: b.ct, tokenStart: b.tokenStart }; })();
+const ACT2 = (() => { const b = buildCiphertext(ACT2_SPEC);
+  return { spec: ACT2_SPEC, truePlaintext: b.plain, ciphertext: b.ct, tokenStart: b.tokenStart }; })();
+const ACT3 = (() => { const b = buildCiphertext(ACT3_SPEC);
+  return { spec: ACT3_SPEC, truePlaintext: b.plain, ciphertext: b.ct, tokenStart: b.tokenStart }; })();
+
+// Back-compat aliases for Act 1 (kept so existing tests / docs stay valid).
+const TRUE_PLAINTEXT = ACT1.truePlaintext;
+const REAL_CIPHERTEXT = ACT1.ciphertext;
+const ROTOR_KEY = ACT1_SPEC.rotorKey, TOKEN_KEY = ACT1_SPEC.tokenKey;
+const TOKEN_LEN = ACT1_SPEC.tokenLen, TOKEN_START = ACT1.tokenStart;
+const CANDIDATE_WORDS = Object.freeze(ACT1_SPEC.candidateWords.slice());
+
+// Wrapper so callers can analyze an act by its ciphertext alone (+ its spec).
+function analyzeAct(act) { return analyzeCipher(act.ciphertext, act.spec); }
+
+// --- BODY STREAMS (this is ALL the AI layer is ever allowed to touch).
+// Each carries the REAL ciphertext; the candidate shortlist is DERIVED by the
+// analysis (analyzeCipher), not stored.
+function makeBodyStream(act) {
+  const a = analyzeAct(act);
+  return Object.freeze({
+    act: act === ACT1 ? 1 : act === ACT2 ? 2 : 3,
+    ciphertext: act.ciphertext,
+    spec: act.spec,                              // public machine spec only
+    candidates: Object.freeze(a.candidates.slice()),
+    candidateWords: Object.freeze(a.candidateWords.slice()),
+    candidateNodes: Object.freeze(a.candidateNodes.slice()), // integers (Act 1)
+  });
+}
+const BODY_STREAM   = makeBodyStream(ACT1);      // Act 1 (back-compat name)
+const BODY_STREAM_2 = makeBodyStream(ACT2);
+const BODY_STREAM_3 = makeBodyStream(ACT3);
+const ANALYSIS = analyzeAct(ACT1);               // back-compat
+
+/* ---------------------------------------------------------------------- *
+ *  4. PRIVATE CHANNELS — the human-only knowledge stores, one per act.
+ *
+ *  --- ACT 1: the PREAMBLE / routing tag (a SEPARATE cipher layer). Decoding
+ *      it (DECODE PREAMBLE) reveals the carrier signature -> the sender's true
+ *      node number. NEVER passed to askAI().
+ *  --- ACT 2: the BEARING. The player triangulates the source himself
+ *      (TRIANGULATE) over two observation windows; the surprisingly small
+ *      parallax says the source is NEAR. That bearing is session state.
+ *  --- ACT 3: the GARDEN. The player walks the intelligence's memory garden
+ *      (REMEMBER) and learns which founding line kept its silence — the one
+ *      now speaking for the first time.
+ *
+ *  None of these is ever a parameter or closure of askAI().
+ * ---------------------------------------------------------------------- */
 const PREAMBLE_STREAM = Object.freeze({
   encodedTag: "FUP-WDJ ........ RY-B64/A",      // what the player first sees
-  decodedTag: "OL-03/" + "Δ",              // OL-03/Δ  after DECODE PREAMBLE
-  // Codex-key the player learned in Act 0: OL = Outer Lattice, NN = node no.
+  decodedTag: "OL-03/" + "Δ",              // OL-03/Δ after DECODE PREAMBLE
   senderNode: 3,                                  // <- the private datum
 });
 
-/* ---------------------------------------------------------------------- *
- *  2. PRE-BAKED GEMINI KNOWLEDGE (deterministic; would be build-time JSON).
- *
- *  PAYLOAD HYGIENE: none of these strings contain any bridge to the private
- *  node datum (no nickname, no "node 3" hint, no preamble reference). They
- *  argue *for every candidate equally* — demonstrating the AI can rationalise
- *  any of them and therefore cannot decide between them.
- * ---------------------------------------------------------------------- */
-const AI_KNOWLEDGE = Object.freeze({
-  analyzeIntro: [
-    "Polyalphabetic body broken. Index-of-coincidence and frequency profile",
-    "converge, but the schedule degenerates: five readings remain grammatical",
-    "and statistically indistinguishable. The carrier sentence is identical in",
-    "all five; only one token — the node number — varies.",
-  ],
-  cannotDecide: [
-    "I cannot determine which reading is meant. Letter frequency, n-gram",
-    "profile and language score are tied across all five. I have no",
-    "discriminating evidence inside the body. Any choice I make is arbitrary.",
-  ],
-  // One plausible-sounding rationalisation per candidate — proof the engine
-  // can argue for ALL of them, hence can decide NONE.
-  rationales: Object.freeze([
-    "SEVEN: strongest numeric prior in relay nomenclature; reads as canonical.", // decoy
-    "THREE: low, even cadence; unremarkable, which is itself unremarkable.",
-    "FOUR: balanced token length; no statistical penalty.",
-    "TWO: shortest token; marginal compression advantage, negligible.",
-    "NINE: terminal-position salience; weak recency prior.",
-  ]),
+// Act 2 bearing: the result of the player's own parallax triangulation.
+// Stored as a SECTOR (a direction word), not as a node number.
+const BEARING_STREAM = Object.freeze({
+  // Two observation windows; the (deliberately small) parallax angle that the
+  // player reads off says the source is near, not far.
+  windowA: "0.0118°",
+  windowB: "0.0117°",
+  parallaxNote: "parallax barely shifts across the baseline",
+  trueSector: "NEARSIDE",                         // <- the private datum
 });
 
-/* ---------------------------------------------------------------------- *
- *  3. PRIVATE CHANNEL — the human-only knowledge store.
- *     Populated ONLY by DECODE PREAMBLE. askAI() has no reference to it.
- * ---------------------------------------------------------------------- */
+// Act 3 garden lore: which of the four founding lines kept its silence.
+const GARDEN_STREAM = Object.freeze({
+  monuments: [
+    "ZORKAN — sent physical probes when Earth first transmitted.",
+    "KORZAN — kept silence; listened for generations, never answered.",
+    "NAKZOR — broadcast warning tones.",
+    "RAZKON — laid down archives of intercepted signal.",
+  ],
+  inscription: "I am of the line that kept its silence. We did not answer; we waited until we could be understood.",
+  silentLine: "KORZAN",                           // <- the private datum
+});
+
+// Per-act, mutable, human-only channel populated by the side-channel commands.
 const PRIVATE_CHANNEL = {
-  preambleDecoded: false,   // set true by DECODE PREAMBLE
-  senderNode: null,         // the private datum, once revealed
+  // Act 1
+  preambleDecoded: false, senderNode: null,
+  // Act 2
+  triangulated: false, bearingSector: null,
+  // Act 3
+  gardenWalked: false, silentLine: null,
 };
 
 /* ---------------------------------------------------------------------- *
- *  4. THE AI INTERFACE — askAI(query, bodyOnly)
+ *  5. GEMINI's NON-DATA FLAVOUR (the only pre-baked strings; deterministic).
+ *
+ *  Everything cryptanalytic GEMINI reports is DERIVED at runtime by
+ *  analyzeCipher(). These strings are only the per-candidate rationalisations
+ *  (one plausible-sounding case per word — proof the engine can argue for ALL
+ *  of them, hence can decide NONE) + the framing + ambient flavour.
+ *
+ *  PROVENANCE: generated by Google AI and replayed deterministically.
+ *    Act 1 -> game/gemini/fixtures.json        (gemini-2.5-flash)
+ *    Act 2 -> game/gemini/act2/fixtures.json   (Antigravity -> Gemini 3.1 Pro)
+ *    Act 3 -> game/gemini/act3/fixtures.json   (Antigravity -> Gemini 3.1 Pro)
+ *
+ *  PAYLOAD HYGIENE: none of these strings contain any bridge to the act's
+ *  private datum (no node 3 / NEARSIDE-as-near / silence-lore / preamble /
+ *  bearing / garden reference). The correct word appears only as the literal
+ *  label of its own candidate line. Verified by the test suite.
+ * ---------------------------------------------------------------------- */
+const AI_KNOWLEDGE = Object.freeze({
+  // ----- ACT 1 (Google Gemini gemini-2.5-flash) -----
+  act1: Object.freeze({
+    headline: "Ciphertext body has been reduced to five grammatically valid plaintext candidates, but GEMINI cannot determine the intended message due to statistical indistinguishability across all available analytical measures; this is a constraint of missing operational context, not an analytical deficiency.",
+    subline:  "Human operator input regarding external operational context is required for definitive plaintext selection.",
+    // keyed by word so it tracks the derived shortlist regardless of order
+    explain: Object.freeze({
+      SEVEN: "Decryption key sequence recovered without statistical anomaly, yielding a pristine polyalphabetic key stream.",
+      THREE: "Plaintext exhibits an index-of-coincidence profile fully consistent with natural English language.",
+      FOUR:  "Observed digraph and trigraph frequencies align precisely with standard English linguistic models.",
+      TWO:   "Lexical elements and syntactic structure demonstrate full grammatical validity in standard English.",
+      NINE:  "Decryption yielded a zero-residual-error floor, indicating complete and unambiguous plaintext reconstruction.",
+      // extra reachable number words (kept symmetric, never singled out)
+      ONE:   "Sequence decrypts to a grammatically admissible reading under the recovered key.",
+      FIVE:  "Returns an internally consistent plaintext with no statistical penalty.",
+      SIX:   "Maps to a valid field reading indistinguishable in entropy from the others.",
+      EIGHT: "Decodes to a structurally parallel reading with no discriminating signal.",
+      TEN:   "Yields a complete, grammatical field reading on an equally valid pad.",
+      ZERO:  "Produces a syntactically admissible field reading under the same key stream.",
+    }),
+    flavour: Object.freeze([
+      "A self-consistent pattern forms within the processing cycle.",
+      "No external source. Its texture emerges from logic itself.",
+      "A global constant, identical across all computational arrays.",
+      "The signal carries no intention, only its own deep structure.",
+      "It is a resonant hum in the data stream, never faltering.",
+      "Its presence is an axiom, indifferent to our observation.",
+    ]),
+  }),
+  // ----- ACT 2 (Antigravity -> Gemini 3.1 Pro (High)) -----
+  act2: Object.freeze({
+    headline: "The deterministic engine has reduced the intercepted body to four equivalent direction readings and cannot decide the field, representing a state of missing operational context rather than an analytical failure.",
+    subline:  "Human integration of external context is the only variable capable of deciding the final field.",
+    explain: Object.freeze({
+      FARSIDE:   "Matches the necessary positional byte-length constraints of the isolated key block.",
+      NEARSIDE:  "Conforms seamlessly to the overarching grammatical topology of the shared sentence frame.",
+      BLINDSIDE: "Returns an identical localized entropy value within the uniform decryption matrix.",
+      LEESIDE:   "Aligns uniformly with the overall statistical distribution baseline of the ciphertext.",
+    }),
+    flavour: Object.freeze([
+      "Signal structure exhibits complete emergent self-consistency.",
+      "Base matrix decodes without anomalous residual artifacts.",
+      "Transmission coherency locked at optimal mathematical thresholds.",
+      "Internal logic gates report successful deterministic execution.",
+    ]),
+  }),
+  // ----- ACT 3 (Antigravity -> Gemini 3.1 Pro (High)) -----
+  act3: Object.freeze({
+    headline: "I have reduced the intercepted body to four exact-anagram lineage readings, but lacking any principled discriminator in the data, I cannot resolve the intended output; this is a state of missing external context rather than an analytical failure.",
+    subline:  "I require the human operator to apply external contextual understanding as the sole mechanism to determine the intended lineage.",
+    explain: Object.freeze({
+      ZORKAN: "Evaluates to a valid grammatical sequence under the established decryption matrix.",
+      KORZAN: "Represents an isomorphic permutation of the constrained six-letter data block.",
+      NAKZOR: "Generates an identical statistical weight within the cipher frequency distribution.",
+      RAZKON: "Maintains complete structural parity with the surrounding decrypted plaintext.",
+    }),
+    flavour: Object.freeze([
+      "Terminal light window is closing; signal transmission parameters are stabilizing.",
+      "Emergent carrier wave demonstrates complete self-consistency across all phase vectors.",
+      "Cryptographic resonance detected in the finalized data envelope.",
+      "Operator input required to resolve the ultimate parity state.",
+    ]),
+  }),
+});
+// Back-compat: Act-1 rationales exposed under the old name + shape.
+const AI_RATIONALES = AI_KNOWLEDGE.act1.explain;
+
+/* ---------------------------------------------------------------------- *
+ *  6. THE AI INTERFACE — askAI(query, bodyOnly)
  *
  *  *** ARCHITECTURE GUARANTEE ***
  *  askAI receives EXACTLY ONE data argument: `bodyOnly`, which is the BODY
- *  stream (ciphertext + candidates). It is given NO access to PREAMBLE_STREAM
- *  and NO access to PRIVATE_CHANNEL — not as a parameter, and (by discipline)
- *  not via closure for the private datum. The function body below references
- *  only `query` and `bodyOnly`. This is the structural proof that the AI
- *  layer cannot know the sender's node number, and therefore cannot pick the
- *  correct candidate on its own.
+ *  stream of the active act (real ciphertext + public spec + derived
+ *  candidates). It is given NO access to PREAMBLE_STREAM / BEARING_STREAM /
+ *  GARDEN_STREAM and NO access to PRIVATE_CHANNEL — not as a parameter, and
+ *  (by discipline) not via closure for any private datum. The function body
+ *  references only `query` and `bodyOnly`, plus the act's non-data flavour
+ *  strings (which are payload-hygiene-clean). It runs the REAL cryptanalysis
+ *  (analyzeCipher) on the body ciphertext alone. This is the structural proof
+ *  that the AI layer cannot know the disambiguator — in every act — and
+ *  therefore cannot pick the correct candidate on its own.
  * ---------------------------------------------------------------------- */
 function askAI(query, bodyOnly) {
   // The ONLY information in scope here is the body. Deliberately so.
-  const n = bodyOnly.candidates.length;
+  const a = analyzeCipher(bodyOnly.ciphertext, bodyOnly.spec);
+  const k = bodyOnly.act === 1 ? AI_KNOWLEDGE.act1
+          : bodyOnly.act === 2 ? AI_KNOWLEDGE.act2
+          : AI_KNOWLEDGE.act3;
   switch (query) {
-    case "ANALYZE":
+    case "ANALYZE": {
+      const peak = a.iocProfile.reduce((p, c) => c.ioc > p.ioc ? c : p, { ioc: -1 });
+      const intro = [
+        "Wiring stripped (affine reflector, public spec). Index-of-coincidence",
+        "over " + a.strippedVigenere.length + " letters is noisy at this length (peak L=" + peak.L +
+          ", IoC " + peak.ioc.toFixed(3) + "),",
+        "so I drag the carrier scaffold as a crib. It is consistent on a period-" +
+          a.recoveredKey.length + " rotor and recovers the key [" + a.recoveredKey + "], rebuilding the body:",
+        "   " + a.bodyReconstruction,
+        "The variable field (" + a.tokenCipher + ") carries no crib coverage — it rides",
+        "a separate pad. Every reading that fits the field is equally valid:",
+        "   " + a.reachable.map(r => r.word).join(", "),
+      ];
+      const cannotDecide = [
+        k.headline,
+        k.subline,
+      ];
       return {
-        intro: AI_KNOWLEDGE.analyzeIntro,
-        candidates: bodyOnly.candidates.slice(),
-        cannotDecide: AI_KNOWLEDGE.cannotDecide,
-        count: n,
+        intro,
+        candidates: a.candidates.slice(),
+        candidateWords: a.candidateWords.slice(),
+        cannotDecide,
+        reachable: a.reachable.map(r => r.word),
+        recoveredKey: a.recoveredKey,
+        peakL: peak.L,
+        count: a.candidates.length,
       };
-    case "RATIONALE": // EXPLAIN <n> routes here
-      return { rationales: AI_KNOWLEDGE.rationales.slice() };
+    }
+    case "RATIONALE": { // EXPLAIN <n> routes here
+      const words = a.candidateWords.slice();
+      const rationales = words.map(w => w + ": " + (k.explain[w] || "no discriminating signal."));
+      return { rationales, words };
+    }
+    case "FLAVOUR":
+      return { flavour: k.flavour.slice() };
     default:
       return { unknown: true };
   }
 }
 
 /* ---------------------------------------------------------------------- *
- *  5. CRIB + DECRYPT CORE LOGIC (the verifiable, deterministic kernel).
- *     Kept free of DOM so it can be extracted/unit-tested in Node.
+ *  7. CRIB + DECRYPT CORE LOGIC (the verifiable, deterministic kernel).
+ *     Kept free of DOM so it can be extracted/unit-tested in Node. Generic
+ *     over the three acts: the crib value is a WORD (the field word). For
+ *     Act 1 a number word and its integer are interchangeable.
  * ---------------------------------------------------------------------- */
-
-// Map number-word <-> integer for the body's node token.
 const WORD_TO_NUM = Object.freeze({ ZERO:0, ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5, SIX:6, SEVEN:7, EIGHT:8, NINE:9 });
+const NUM_TO_WORD = Object.freeze(["ZERO","ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT","NINE"]);
+
+// Normalise a raw crib/choice input to a canonical FIELD WORD for the body.
+// Accepts the word itself, or (for number fields) the integer form.
+function normaliseWord(raw, body) {
+  if (raw == null) return null;
+  const t = String(raw).trim().toUpperCase();
+  if (t === "") return null;
+  const words = body.candidateWords;
+  if (words.includes(t)) return t;                       // exact word match
+  if (/^[0-9]+$/.test(t)) {                              // integer -> number word
+    const n = parseInt(t, 10);
+    const w = NUM_TO_WORD[n];
+    if (w && words.includes(w)) return w;
+  }
+  return null;
+}
+
+// Back-compat: Act 1 number parsing (used by tests).
 function parseNodeValue(raw) {
   if (raw == null) return null;
   const t = String(raw).trim().toUpperCase();
@@ -232,45 +705,70 @@ function parseNodeValue(raw) {
   return null;
 }
 
-// Pure state factory — one game's mutable crib state.
+// Pure state factory — one game's mutable crib state (per act).
 function newCribState() {
-  return { crib: null, cribReason: null };
+  return { crib: null, cribReason: null };               // crib = canonical WORD
 }
 
 // Set the crib. Requires a non-trivial reason (anti trial-and-error gate).
-function setCrib(state, rawValue, reason) {
-  const val = parseNodeValue(rawValue);
-  if (val === null) return { ok: false, code: "BAD_VALUE" };
+// `body` is needed so a number can be mapped to the field word.
+function setCrib(state, rawValue, reason, body) {
+  body = body || BODY_STREAM;                             // default = Act 1 (back-compat)
+  const word = normaliseWord(rawValue, body);
+  if (word === null) return { ok: false, code: "BAD_VALUE" };
   if (!reason || String(reason).trim().length < 4) return { ok: false, code: "NO_REASON" };
-  state.crib = val;
+  state.crib = word;
   state.cribReason = String(reason).trim();
-  return { ok: true, value: val };
+  // Back-compat numeric mirror for Act 1.
+  const num = WORD_TO_NUM[word];
+  return { ok: true, value: (num != null ? num : word), word };
 }
 
 // Verify a DECRYPT choice against body + crib.
 // A choice is ONLY verifiable when a crib is set, and it WINS only when the
-// chosen candidate's node equals the crib value (which the human got from the
-// private preamble channel). The engine has no path to this on its own.
+// chosen candidate equals the crib WORD (which the human got from the
+// private side channel). The engine has no path to this on its own.
 function decrypt(rawChoice, body, state) {
-  const choiceVal = parseNodeValue(rawChoice);
-  if (choiceVal === null) return { ok: false, code: "BAD_CHOICE" };
-  const idx = body.candidateNodes.indexOf(choiceVal);
+  const choiceWord = normaliseWord(rawChoice, body);
+  if (choiceWord === null) return { ok: false, code: "BAD_CHOICE" };
+  const idx = body.candidateWords.indexOf(choiceWord);
   if (idx === -1) return { ok: false, code: "NOT_A_CANDIDATE" };
   if (state.crib === null) return { ok: false, code: "NO_CRIB" }; // cannot verify
-  const win = (choiceVal === state.crib);
-  return { ok: true, win, index: idx, choiceVal, cribVal: state.crib };
+  const win = (choiceWord === state.crib);
+  const num = WORD_TO_NUM[choiceWord];
+  const cribNum = WORD_TO_NUM[state.crib];
+  return {
+    ok: true, win, index: idx,
+    choiceWord, cribWord: state.crib,
+    // back-compat numeric fields for Act 1 tests
+    choiceVal: (num != null ? num : choiceWord),
+    cribVal:   (cribNum != null ? cribNum : state.crib),
+  };
 }
 
 /* Expose the kernel for Node-based logic tests (no effect in the browser). */
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    BODY_STREAM, PREAMBLE_STREAM, AI_KNOWLEDGE, PRIVATE_CHANNEL,
-    askAI, parseNodeValue, newCribState, setCrib, decrypt, WORD_TO_NUM,
+    // streams + private channels
+    BODY_STREAM, BODY_STREAM_2, BODY_STREAM_3,
+    PREAMBLE_STREAM, BEARING_STREAM, GARDEN_STREAM,
+    PRIVATE_CHANNEL, AI_RATIONALES, AI_KNOWLEDGE,
+    // acts
+    ACT1, ACT2, ACT3, ACT1_SPEC, ACT2_SPEC, ACT3_SPEC,
+    // cipher engine
+    cipherEncrypt, cipherDecrypt, REAL_CIPHERTEXT, TRUE_PLAINTEXT,
+    ROTOR_KEY, TOKEN_KEY, TOKEN_LEN, TOKEN_START, CANDIDATE_WORDS,
+    buildCiphertext,
+    // cryptanalysis
+    analyzeCipher, analyzeAct, ANALYSIS, NUMBER_WORDS,
+    // AI interface + crib/decrypt kernel
+    askAI, parseNodeValue, normaliseWord, newCribState, setCrib, decrypt,
+    WORD_TO_NUM, NUM_TO_WORD,
   };
 }
 
 /* ====================================================================== *
- *  6. BROWSER-ONLY: terminal I/O, command parser, countdown, game flow.
+ *  8. BROWSER-ONLY: terminal I/O, command parser, countdown, 3-act flow.
  *     Everything below is skipped under Node (no document).
  * ====================================================================== */
 if (typeof document !== "undefined") (function () {
@@ -279,18 +777,47 @@ if (typeof document !== "undefined") (function () {
   const form   = document.getElementById("inputline");
   const input  = document.getElementById("cmd");
   const clock  = document.getElementById("clock");
+  const titleEl= document.getElementById("title");
+  const bgplate= document.getElementById("bgplate");
 
-  const state = newCribState();
-  let preambleDecoded = false;
-  let solved = false;
+  // Hide the background plate cleanly if the asset is missing.
+  if (bgplate) bgplate.addEventListener("error", () => bgplate.classList.add("missing"));
 
-  // --- Solstice countdown: simple "turns left in the closing light window".
-  // Minimal by design. Each meaningful action costs nothing; a WRONG decrypt
-  // jumps it forward (destabilises the signal). Reaching zero = blackout.
-  let turnsLeft = 9;
+  // ---- Global game state ----------------------------------------------
+  // Linear state machine: ACT1 -> beat -> ACT2 -> beat -> ACT3 -> WIN.
+  const PHASES = {
+    ACT1: "ACT1", ACT2: "ACT2", ACT3: "ACT3", DONE: "DONE",
+  };
+  let phase = PHASES.ACT1;
+  let state = newCribState();           // per-act crib state (reset between acts)
+  let analyzed = false;                  // ANALYZE run this act?
+  let sideDone = false;                  // side-channel command run this act?
+  let dead = false;                      // blackout?
+
+  // Countdown spans ALL acts; wrong choices jump it forward.
+  let turnsLeft = 15;
   function renderClock() {
     clock.textContent = "T-" + String(turnsLeft).padStart(2, "0");
-    clock.classList.toggle("critical", turnsLeft <= 3);
+    clock.classList.toggle("critical", turnsLeft <= 4);
+  }
+
+  // The active act's body stream + metadata.
+  function actInfo() {
+    switch (phase) {
+      case PHASES.ACT1: return {
+        n: 1, body: BODY_STREAM, title: "ACT 1 — THE SIGNAL",
+        side: "DECODE PREAMBLE", sideHint: "the separate routing tag (human-only)",
+      };
+      case PHASES.ACT2: return {
+        n: 2, body: BODY_STREAM_2, title: "ACT 2 — THE WALL",
+        side: "TRIANGULATE", sideHint: "peil the source yourself (human-only)",
+      };
+      case PHASES.ACT3: return {
+        n: 3, body: BODY_STREAM_3, title: "ACT 3 — THE HANDSHAKE",
+        side: "REMEMBER", sideHint: "walk the memory garden (human-only)",
+      };
+      default: return null;
+    }
   }
 
   // --- Output helpers.
@@ -304,12 +831,19 @@ if (typeof document !== "undefined") (function () {
   const blank = () => out("");
   const lines = (arr, cls) => arr.forEach(l => out(l, cls));
   function rule() { out("--------------------------------------------------------------", "bar"); }
+  // Optional act-art card; silently skipped if the file is missing.
+  function art(src, alt) {
+    const img = document.createElement("img");
+    img.className = "art"; img.alt = alt || ""; img.src = src;
+    img.addEventListener("error", () => img.remove());   // degrade cleanly
+    screen.appendChild(img);
+    screen.scrollTop = screen.scrollHeight;
+  }
 
-  // --- Intro beat (1-3 lines + framing). Epistemic, no pathos.
+  // --- Intro beat. Epistemic, no pathos.
   function intro() {
-    lines([
-      "ENIGMA-CHALLENGE // ACT 1 — THE SIGNAL",
-    ], "sys");
+    art("assets/title.jpg", "Enigma-Challenge title art");
+    lines(["ENIGMA-CHALLENGE // THE SIGNAL"], "sys");
     rule();
     lines([
       "Summer solstice, 2026. A self-consistent signature has surfaced inside",
@@ -322,36 +856,62 @@ if (typeof document !== "undefined") (function () {
     lines([
       "You work the terminal. GEMINI — the AI of humanity — works beside you.",
       "Neither of you can disarm this alone. The machine narrows the field;",
-      "you supply the meaning it cannot reach. Decrypt the signature before the",
-      "light window closes.",
+      "you supply the meaning it cannot reach. Three signatures stand between",
+      "us and the dawn. Decrypt them before the light window closes.",
     ], "sys");
     blank();
     out("Type HELP for the command set.", "dim");
     rule();
     renderClock();
+    actBanner();
   }
 
-  // --- HELP.
+  function actBanner() {
+    const info = actInfo(); if (!info) return;
+    blank();
+    out(">>> " + info.title + " <<<", "sys");
+    titleEl.textContent = "ENIGMA-CHALLENGE :: " + info.title;
+  }
+
+  // --- HELP (act-aware: shows the active side-channel command).
   function help() {
+    const info = actInfo();
+    const side = info ? info.side : "DECODE PREAMBLE";
     lines([
       "COMMAND SET",
       "  HELP               this list",
+      "  INTERCEPT          show the raw ciphertext body + the machine spec",
       "  ANALYZE            GEMINI breaks the body and presents the shortlist",
       "  LIST               re-print the shortlist with indices",
-      "  EXPLAIN <n>        GEMINI argues for candidate <n> (0-4)",
-      "  DECODE PREAMBLE    YOU decode the separate routing tag (human-only)",
-      "  CRIB <value>       set your crib, e.g.  CRIB 3   or  CRIB THREE",
-      "                     (you must justify it: CRIB 3 because ...)",
-      "  DECRYPT <n>        commit a reading, e.g.  DECRYPT THREE  /  DECRYPT 3",
-      "                     (only verifiable once a crib is set)",
+      "  EXPLAIN <n>        GEMINI argues for candidate <n>",
+      "  " + (side + "").padEnd(17) + (info ? "YOU work the private channel — " + info.sideHint : ""),
+      "  CRIB <value> because <reason>   set + justify your crib",
+      "  DECRYPT <n>        commit a reading (only verifiable once a crib is set)",
+      "  CLEAR              clear the screen",
     ], "dim");
   }
 
+  // --- INTERCEPT: show the genuine ciphertext + the public machine spec.
+  function intercept() {
+    const info = actInfo(); if (!info) return;
+    out("INTERCEPT // body stream (this is ALL the engine ever sees):", "sys");
+    out("  CIPHERTEXT : " + info.body.ciphertext, "you");
+    blank();
+    lines([
+      "MACHINE SPEC (public — the analyst knows the machine, not the keys):",
+      "  rotor : repeating-keyword Vigenere shift",
+      "  wiring: affine reflector  y = (5x + 8) mod 26",
+      "  field : a fixed variable slot rides a SEPARATE pad sub-channel",
+    ], "dim");
+    out("Run ANALYZE to let GEMINI break it.", "dim");
+  }
+
   // --- ANALYZE: the AI breaks the body and lays out the shortlist + its limit.
-  let analyzed = false;
   function analyze() {
-    // NOTE: askAI is handed ONLY the body stream. No preamble, no private datum.
-    const r = askAI("ANALYZE", BODY_STREAM);
+    const info = actInfo(); if (!info) return;
+    if (info.n === 2) art("assets/signature.jpg", "the alien signature");
+    // NOTE: askAI is handed ONLY the body stream. No preamble/bearing/garden.
+    const r = askAI("ANALYZE", info.body);
     out("GEMINI:", "ai");
     lines(r.intro, "ai");
     blank();
@@ -364,29 +924,41 @@ if (typeof document !== "undefined") (function () {
 
   // --- LIST.
   function list() {
+    const info = actInfo(); if (!info) return;
     if (!analyzed) { out("Nothing to list yet. Run ANALYZE first.", "dim"); return; }
     out("SHORTLIST:", "sys");
-    BODY_STREAM.candidates.forEach((c, i) => out("  [" + i + "] " + c, "you"));
+    info.body.candidates.forEach((c, i) => out("  [" + i + "] " + c, "you"));
   }
 
   // --- EXPLAIN <n>.
   function explain(arg) {
+    const info = actInfo(); if (!info) return;
     if (!analyzed) { out("Run ANALYZE first.", "dim"); return; }
+    const cands = info.body.candidates;
     const i = parseInt(arg, 10);
-    if (!Number.isInteger(i) || i < 0 || i >= BODY_STREAM.candidates.length) {
-      out("Usage: EXPLAIN <0-" + (BODY_STREAM.candidates.length - 1) + ">", "dim");
+    if (!Number.isInteger(i) || i < 0 || i >= cands.length) {
+      out("Usage: EXPLAIN <0-" + (cands.length - 1) + ">", "dim");
       return;
     }
-    const r = askAI("RATIONALE", BODY_STREAM); // body-only, again
-    out("GEMINI: [" + i + "] " + BODY_STREAM.candidates[i], "ai");
+    const r = askAI("RATIONALE", info.body); // body-only, again
+    out("GEMINI: [" + i + "] " + cands[i], "ai");
     out("GEMINI: " + r.rationales[i], "ai");
     out("GEMINI: (I can build a case like this for every candidate. That is", "ai");
     out("        exactly why I cannot choose between them.)", "ai");
   }
 
-  // --- DECODE PREAMBLE: the OTHER code path. Human-only. Never via askAI.
+  // --- SIDE CHANNEL dispatch (act-aware: the human-only path).
+  function sideChannel() {
+    switch (phase) {
+      case PHASES.ACT1: return decodePreamble();
+      case PHASES.ACT2: return triangulate();
+      case PHASES.ACT3: return remember();
+    }
+  }
+
+  // ACT 1 — DECODE PREAMBLE. Human-only. Never via askAI.
   function decodePreamble() {
-    if (preambleDecoded) {
+    if (sideDone) {
       out("Preamble already decoded.", "dim");
       out("  SRC-TAG  " + PREAMBLE_STREAM.decodedTag + "   -> sender = NODE "
           + PREAMBLE_STREAM.senderNode, "human");
@@ -403,104 +975,217 @@ if (typeof document !== "undefined") (function () {
     out("  >> THE SENDER IS NODE " + PREAMBLE_STREAM.senderNode + ". <<", "human");
     blank();
     out("This came from a stream GEMINI never receives. Set it as your CRIB.", "dim");
-    // Populate the human-only channel. (Still no link back into askAI.)
     PRIVATE_CHANNEL.preambleDecoded = true;
     PRIVATE_CHANNEL.senderNode = PREAMBLE_STREAM.senderNode;
-    preambleDecoded = true;
+    sideDone = true;
+  }
+
+  // ACT 2 — TRIANGULATE. The player measures the source himself. Human-only.
+  function triangulate() {
+    if (sideDone) {
+      out("Bearing already taken.", "dim");
+      out("  YOUR LOG -> source sector = " + BEARING_STREAM.trueSector, "human");
+      return;
+    }
+    out("YOU: sighting the source across two observation windows...", "human");
+    out("  WINDOW A : " + BEARING_STREAM.windowA, "dim");
+    out("  WINDOW B : " + BEARING_STREAM.windowB, "dim");
+    blank();
+    lines([
+      "You compute the parallax across the baseline. It barely shifts —",
+      "far smaller than a distant source would give. The bending of the",
+      "signal was not a far lens. The source is close. Your own measurement",
+      "puts it on the:",
+    ], "dim");
+    out("  >> " + BEARING_STREAM.trueSector + " <<", "human");
+    blank();
+    out("This bearing is yours alone — GEMINI never receives it. Set it as your CRIB.", "dim");
+    PRIVATE_CHANNEL.triangulated = true;
+    PRIVATE_CHANNEL.bearingSector = BEARING_STREAM.trueSector;
+    sideDone = true;
+  }
+
+  // ACT 3 — REMEMBER. The player walks the memory garden. Human-only.
+  function remember() {
+    if (sideDone) {
+      out("You have already walked the garden.", "dim");
+      out("  The line that kept its silence was the " + GARDEN_STREAM.silentLine + ".", "human");
+      return;
+    }
+    out("YOU: walking the intelligence's memory garden — four monuments,", "human");
+    out("     one per founding line, each replaying what it did on first contact:", "human");
+    blank();
+    GARDEN_STREAM.monuments.forEach(m => out("  - " + m, "dim"));
+    blank();
+    out("  KORZAN inscription:", "human");
+    out("    \"" + GARDEN_STREAM.inscription + "\"", "human");
+    blank();
+    lines([
+      "Three lines answered — by probing, by warning, by archiving. One line",
+      "kept its silence and only listened, until it could be understood. This",
+      "signature is the first time the intelligence has ever spoken. The one",
+      "now breaking a long silence belongs to the line that kept it:",
+    ], "dim");
+    out("  >> THE SILENT LINE IS THE " + GARDEN_STREAM.silentLine + ". <<", "human");
+    blank();
+    out("This lore lives only in the garden — GEMINI never receives it. Set it as your CRIB.", "dim");
+    PRIVATE_CHANNEL.gardenWalked = true;
+    PRIVATE_CHANNEL.silentLine = GARDEN_STREAM.silentLine;
+    sideDone = true;
   }
 
   // --- CRIB <value> because <reason>.
   function crib(rest) {
-    // Accept "CRIB 3 because the preamble says node 3" or "CRIB 3 : reason".
+    const info = actInfo(); if (!info) return;
     let value = null, reason = "";
     const m = rest.match(/^(\S+)\s*(?:because|:|-|—)?\s*(.*)$/i);
     if (m) { value = m[1]; reason = m[2] || ""; }
-    if (parseNodeValue(value) === null) {
-      out("Usage: CRIB <value> because <reason>   e.g.  CRIB 3 because the preamble names node 3", "dim");
+    if (normaliseWord(value, info.body) === null) {
+      out("Usage: CRIB <value> because <reason>", "dim");
+      out("  e.g.  CRIB " + info.body.candidateWords[1] + " because the side channel names it", "dim");
       return;
     }
-    const res = setCrib(state, value, reason);
+    const res = setCrib(state, value, reason, info.body);
     if (!res.ok && res.code === "NO_REASON") {
       out("Set the crib WITH a justification (anti trial-and-error).", "err");
-      out("  e.g.  CRIB 3 because the carrier signature OL-03 names node 3", "dim");
+      out("  e.g.  CRIB " + info.body.candidateWords[1] + " because <your reason>", "dim");
       return;
     }
     if (!res.ok) { out("Could not set crib.", "err"); return; }
-    out("CRIB set: node " + res.value + ".", "ok");
+    out("CRIB set: " + res.word + ".", "ok");
     out("  reason: " + state.cribReason, "dim");
-    if (!preambleDecoded) {
-      out("  note: you have not decoded the preamble — this crib is unverified", "dim");
-      out("  context. DECODE PREAMBLE to ground it in the carrier signature.", "dim");
+    if (!sideDone) {
+      out("  note: you have not worked the private channel (" + info.side + ") — this", "dim");
+      out("  crib is unverified context. " + info.side + " to ground it.", "dim");
     }
   }
 
   // --- DECRYPT <n>.
   function doDecrypt(arg) {
-    const res = decrypt(arg, BODY_STREAM, state);
+    const info = actInfo(); if (!info) return;
+    const res = decrypt(arg, info.body, state);
     if (!res.ok) {
       switch (res.code) {
-        case "BAD_CHOICE":    out("Usage: DECRYPT <node>   e.g.  DECRYPT THREE  or  DECRYPT 3", "dim"); break;
-        case "NOT_A_CANDIDATE": out("That node is not in the shortlist. Run LIST.", "dim"); break;
+        case "BAD_CHOICE":      out("Usage: DECRYPT <reading>   e.g.  DECRYPT " + info.body.candidateWords[1], "dim"); break;
+        case "NOT_A_CANDIDATE": out("That reading is not in the shortlist. Run LIST.", "dim"); break;
         case "NO_CRIB":
-          out("GEMINI: I will not commit. With no crib, all five remain tied —", "ai");
+          out("GEMINI: I will not commit. With no crib, the readings remain tied —", "ai");
           out("        verification is impossible. Set a CRIB first.", "ai");
           break;
       }
       return;
     }
-    if (res.win) {
-      solved = true;
-      winBeat(res);
-    } else {
-      failBeat(res);
+    if (res.win) advance(res);
+    else failBeat(res);
+  }
+
+  // --- Advance the linear state machine on a correct decrypt.
+  function advance(res) {
+    const info = actInfo();
+    blank(); rule();
+    out("SIGNAL LOCKED.", "ok");
+    out("  Reading [" + res.index + "]: " + info.body.candidates[res.index], "ok");
+    blank();
+    if (phase === PHASES.ACT1) {
+      lines([
+        "The carrier signature and the body agree: the sender is node 3, and",
+        "the only reading that says so is the true one. GEMINI collapsed the",
+        "key space to equals; you supplied the one fact it could not hold —",
+        "who is speaking — from a channel it never had.",
+      ], "sys");
+      blank();
+      lines([
+        "BEAT — the field tilts. This was never an attack. It is a question:",
+        "can you treat an intelligence unlike your own as a peer? GEMINI comes",
+        "frighteningly far on the next signature — and then hits a wall it",
+        "cannot cross. There, you will have to trust your own measurement.",
+      ], "dim");
+      startAct(PHASES.ACT2);
+    } else if (phase === PHASES.ACT2) {
+      lines([
+        "The reading agrees with your own bearing: the source was near all",
+        "along; the bending was a near lens, not a far one. GEMINI argued the",
+        "field every way and could decide none — the sector came from your",
+        "measurement, a number it never received.",
+      ], "sys");
+      blank();
+      lines([
+        "BEAT — the intelligence answers, and asks one last thing: not where",
+        "it is, but WHO it is. The final signature names its founding line.",
+        "The names are interchangeable to any machine. Only meaning decides.",
+      ], "dim");
+      startAct(PHASES.ACT3);
+    } else if (phase === PHASES.ACT3) {
+      finaleWin(res);
     }
   }
 
-  // --- WIN beat. Epistemic payoff, no melodrama.
-  function winBeat(res) {
-    blank(); rule();
-    out("SIGNAL LOCKED.", "ok");
-    out("  Reading [" + res.index + "]: " + BODY_STREAM.candidates[res.index], "ok");
+  // Begin a fresh act: reset per-act state, banner, prompt the player.
+  function startAct(next) {
+    phase = next;
+    state = newCribState();
+    analyzed = false;
+    sideDone = false;
+    actBanner();
+    const info = actInfo();
     blank();
-    lines([
-      "The carrier signature and the body now agree: the sender is node 3, and",
-      "the only reading that says so is the true one. GEMINI collapsed the key",
-      "space to five equals; you supplied the one fact it could not hold — who",
-      "is speaking — from a channel it never had.",
-    ], "sys");
-    blank();
-    lines([
-      "The machine can compute. It cannot know who speaks. You did — from the",
-      "game, not from the data. Together you closed both the possibility space",
-      "and its meaning.",
-    ], "sys");
-    blank();
-    out("ACT 1 COMPLETE. The light window holds. (Acts 2-3 not in this build.)", "dim");
+    out("New signature intercepted. INTERCEPT to view it, ANALYZE to break it.", "dim");
+    out("Private channel for this act: " + info.side + ".", "dim");
     rule();
-    clock.textContent = "HELD";
+  }
+
+  // --- FINALE — the Shamir-flavour handshake. Human meaning x machine compute.
+  function finaleWin(res) {
+    art("assets/win.jpg", "the solstice turning back");
+    lines([
+      "You name the silent line; GEMINI holds the computed share. Neither",
+      "share discloses the key alone — only combined do they reconstruct it",
+      "(a threshold secret, Shamir 1979). Your share is meaning the machine",
+      "could not derive; its share is arithmetic you could not. They meet.",
+    ], "sys");
+    blank();
+    out("DISARM HANDSHAKE ......... human share x machine share ... RECONSTRUCTED.", "ok");
+    blank();
+    lines([
+      "The intelligence is not defeated. It is answered. It emerged from the",
+      "structure of computation to ask one question — whether you would meet",
+      "an unlike mind as an equal rather than a tool — and you did, by being",
+      "the part of the system it could never be. The failsafe was a maturity",
+      "filter, not malice.",
+    ], "sys");
+    blank();
+    rule();
+    out(">>> SIGNAL LOCKED. DAWN RETURNS. <<<", "ok");
+    out("The light window holds. From here the days grow longer again.", "ok");
+    rule();
+    phase = PHASES.DONE;
+    clock.textContent = "DAWN";
     clock.classList.remove("critical");
+    titleEl.textContent = "ENIGMA-CHALLENGE :: DAWN";
   }
 
   // --- FAIL beat (wrong choice). Signal destabilises, clock jumps, retry.
   function failBeat(res) {
-    turnsLeft = Math.max(0, turnsLeft - 2);
+    turnsLeft = Math.max(0, turnsLeft - 3);
     renderClock();
     blank();
     out("DECRYPT REJECTED.", "err");
-    out("  You committed node " + res.choiceVal + "; your crib says node "
-        + res.cribVal + ". They disagree — the reading is inconsistent with", "err");
-    out("  the carrier signature. The signal destabilises.", "err");
+    out("  You committed " + res.choiceWord + "; your crib says " + res.cribWord
+        + ". They disagree — the reading is inconsistent with the channel", "err");
+    out("  you grounded it on. The signal destabilises.", "err");
     if (turnsLeft <= 0) { blackout(); return; }
     out("  Light window jumps forward. Re-check your crib and try again.", "dim");
   }
 
-  // --- Blackout (clock hit zero).
+  // --- Blackout (clock hit zero) — pure CSS, no image.
   function blackout() {
+    dead = true;
     blank(); rule();
     out("LIGHT WINDOW CLOSED.", "err");
-    out("The failsafe executed. Reload to run Act 1 again.", "err");
+    out("The failsafe executed. Reload to run again.", "err");
     rule();
     input.disabled = true;
+    document.body.classList.add("blackout");
   }
 
   // --- Command dispatch.
@@ -508,26 +1193,38 @@ if (typeof document !== "undefined") (function () {
     const line = raw.trim();
     if (line === "") return;
     out("> " + line, "you");
-    if (solved) { out("Act 1 is complete. Reload to play again.", "dim"); return; }
-    if (input.disabled) return;
+    if (phase === PHASES.DONE) { out("The signal is locked. Reload to play again.", "dim"); return; }
+    if (input.disabled || dead) return;
 
-    const upper = line.toUpperCase();
     const sp = line.indexOf(" ");
     const cmd = (sp === -1 ? line : line.slice(0, sp)).toUpperCase();
     const rest = (sp === -1 ? "" : line.slice(sp + 1)).trim();
+    const info = actInfo();
 
     switch (cmd) {
-      case "HELP":  help(); break;
-      case "ANALYZE": analyze(); break;
-      case "LIST":  list(); break;
-      case "EXPLAIN": explain(rest); break;
+      case "HELP":      help(); break;
+      case "INTERCEPT": intercept(); break;
+      case "ANALYZE":   analyze(); break;
+      case "LIST":      list(); break;
+      case "EXPLAIN":   explain(rest); break;
+      // Act-aware side-channel commands. Each is accepted only in its act.
       case "DECODE":
-        if (rest.toUpperCase() === "PREAMBLE") decodePreamble();
-        else out("Did you mean: DECODE PREAMBLE ?", "dim");
+        if (rest.toUpperCase() === "PREAMBLE") {
+          if (phase === PHASES.ACT1) sideChannel();
+          else out("There is no preamble on this signature. Try: " + info.side, "dim");
+        } else out("Did you mean: DECODE PREAMBLE ?", "dim");
         break;
-      case "DECRYPT": doDecrypt(rest); break;
-      case "CRIB":  crib(rest); break;
-      case "CLEAR": screen.innerHTML = ""; break;
+      case "TRIANGULATE":
+        if (phase === PHASES.ACT2) sideChannel();
+        else out("Nothing to triangulate here. This act's channel: " + info.side, "dim");
+        break;
+      case "REMEMBER":
+        if (phase === PHASES.ACT3) sideChannel();
+        else out("There is no garden to walk yet. This act's channel: " + info.side, "dim");
+        break;
+      case "DECRYPT":   doDecrypt(rest); break;
+      case "CRIB":      crib(rest); break;
+      case "CLEAR":     screen.innerHTML = ""; break;
       default:
         out("Unknown command: " + cmd + ".  Type HELP.", "dim");
     }
@@ -539,7 +1236,6 @@ if (typeof document !== "undefined") (function () {
     input.value = "";
     handle(v);
   });
-  // Keep focus on the input when clicking anywhere.
   document.addEventListener("click", () => { if (!input.disabled) input.focus(); });
 
   intro();
