@@ -1197,26 +1197,44 @@ if (typeof document !== "undefined") (function () {
     return add(r);
   }
   const you   = t => say("you ›", t, "v-you");
-  const gem   = t => say("◇ gemini", t, "v-gem");
-  const alien = t => say("⟁", t, "v-alien");
   const priv  = (who, t) => say(who, t, "v-priv");
-  // typewriter — "freshly typed" feel; used for the opener as the matrix dissolves
+  // typewriter "freshly typed" feel. Every GEMINI/alien line types out, and a
+  // queue serialises them so back-to-back lines (ANALYZE, the finale) never overlap.
+  let typeQ = [], typingNow = false, typeGen = 0;
+  function clearTyping() { typeGen++; typeQ.length = 0; typingNow = false; }   // a phase clear cancels pending + in-flight typing
   function typeText(el, text, onDone) {
+    const myGen = typeGen;
     let i = 0; const STEP = 2, MS = 16;
     el.textContent = ""; el.classList.add("typing");
     (function tick() {
+      if (myGen !== typeGen) { el.classList.remove("typing"); return; }
       i += STEP; el.textContent = text.slice(0, i);
       const m = $("screen"); if (m) m.scrollTop = m.scrollHeight;
       if (i < text.length) setTimeout(tick, MS);
       else { el.classList.remove("typing"); if (onDone) onDone(); }
     })();
   }
-  function gemTyped(text, onDone) {
-    const r = elem("div", "say v-gem");
-    r.appendChild(elem("span", "who", esc("◇ gemini")));
-    const p = elem("p", null, ""); r.appendChild(p);
-    add(r); typeText(p, String(text || ""), onDone); return r;
+  function runTypeQ() {
+    if (!typeQ.length) { typingNow = false; return; }
+    typingNow = true;
+    const job = typeQ.shift();
+    job.row.style.display = "";
+    const m = $("screen"); if (m) m.scrollTop = m.scrollHeight;
+    typeText(job.p, job.text, function () { if (job.onDone) job.onDone(); runTypeQ(); });
   }
+  function sayTyped(who, text, voice, onDone) {
+    const r = elem("div", "say " + voice);
+    r.appendChild(elem("span", "who", esc(who)));
+    const p = elem("p", null, ""); r.appendChild(p);
+    add(r);
+    if (typingNow || typeQ.length) r.style.display = "none";
+    typeQ.push({ row: r, p: p, text: String(text == null ? "" : text), onDone: onDone || null });
+    if (!typingNow) runTypeQ();
+    return r;
+  }
+  const gem   = t => sayTyped("◇ gemini", t, "v-gem");
+  const alien = t => sayTyped("⟁", t, "v-alien");
+  function gemTyped(text, onDone) { return sayTyped("◇ gemini", text, "v-gem", onDone); }
   function mono(label, codeText, specText) {
     const box = elem("div", "intercept");
     box.appendChild(elem("span", "tag", esc(label)));
@@ -1237,7 +1255,7 @@ if (typeof document !== "undefined") (function () {
     cands.forEach((c, i) => box.appendChild(elem("p", "opt", "[" + i + "] " + esc(c))));
     return add(box);
   }
-  function clearFeed() { feed.innerHTML = ""; const m = $("screen"); if (m) m.scrollTop = 0; }
+  function clearFeed() { clearTyping(); feed.innerHTML = ""; const m = $("screen"); if (m) m.scrollTop = 0; }
 
   // ---- Beat gate: hold the story until the player chooses to go on. -------
   function awaitContinue(nextFn) {
