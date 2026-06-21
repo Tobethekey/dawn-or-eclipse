@@ -5,119 +5,198 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ENIGMA-CHALLENGE // THE SIGNAL</title>
 <style>
-  /* ------------------------------------------------------------------ *
-   * Terminal look: monospace, green-on-black. DOM only, no canvas.     *
-   * One scrolling output log + one input line. Self-contained.         *
-   * Optional act-art via <img>/CSS; degrades cleanly if files absent.  *
-   * ------------------------------------------------------------------ */
-  :root { --fg: #33ff66; --fg-dim: #1f8f3d; --bg: #050805; --warn: #ffcc33; --err: #ff5544; }
+  /* ================================================================== *
+   * ENIGMA-CHALLENGE — CRT console. Bletchley-meets-2026 terminal.
+   * Phosphor-green world; three distinct voices (YOU / GEMINI / the
+   * alien); the solstice window as a draining gauge that dims the
+   * screen as it closes. Prose reflows naturally; ciphertext stays
+   * monospace. DOM only, no canvas, no build, zero external deps.
+   * ================================================================== */
+  :root {
+    --void:#04070a; --phosphor:#36f08a; --phosphor-dim:#1c7a4c;
+    --you:#d8d3c2; --gemini:#67d4ff; --alien:#bb86ff; --solar:#ffc24d;
+    --alarm:#ff4d4d; --rule:#0e2a1c; --gold:#ffd98a;
+    --accent:var(--phosphor); --wash:rgba(54,240,138,0.09); --tension:0;
+    --col:78ch;   /* the centred console column */
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
-    font-size: 15px;
-    line-height: 1.45;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    position: relative;
+    background: var(--void); color: var(--phosphor);
+    font-family: "SFMono-Regular", "JetBrains Mono", "Consolas", "Liberation Mono", "Menlo", monospace;
+    font-size: clamp(14px, 0.5vw + 11px, 18px); line-height: 1.55;
+    height: 100vh; overflow: hidden;
   }
-  /* Terminal background plate. If assets/terminal-bg.jpg is missing the <img>
-     simply fails to load and we stay on the flat near-black --bg. */
-  #bgplate {
-    position: fixed; inset: 0; z-index: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    opacity: 0.18;
-    filter: saturate(0.6) brightness(0.7);
-    pointer-events: none;
+  .crt { position: relative; height: 100vh; display: flex; flex-direction: column;
+    background: radial-gradient(120% 90% at 50% 38%, var(--wash), transparent 70%), var(--void);
+    transition: background 1.2s ease; }
+  .crt::after { content:""; position:absolute; inset:0; z-index:60; pointer-events:none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.22) 3px);
+    mix-blend-mode: multiply; }
+  /* time-pressure veil: the closing light window. tightens/darkens as --tension rises. */
+  #veil { position:absolute; inset:0; z-index:55; pointer-events:none;
+    box-shadow: inset 0 0 200px 50px rgba(0,0,0,0.7);
+    background: radial-gradient(130% 120% at 50% 45%, transparent calc(64% - var(--tension)*42%), rgba(0,0,0,0.72));
+    transition: background 1.4s ease; }
+  body.crit #veil { background: radial-gradient(120% 120% at 50% 45%, transparent 18%, rgba(60,0,0,0.45) 58%, rgba(0,0,0,0.86)); }
+  /* full-bleed apocalyptic backdrop, heavily darkened so the console stays legible.
+     Hidden until a real image loads (graceful fallback to the bare gradient look). */
+  #backdrop { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center;
+    opacity:0; transition:opacity 1.8s ease; }
+  #backdrop.show { opacity:1; }
+  #backdrop::after { content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(120% 90% at 50% 40%, var(--wash), transparent 72%),
+      linear-gradient(180deg, rgba(4,7,10,0.52), rgba(4,7,10,0.72)); }
+  .crt > *:not(#backdrop):not(#veil):not(#numeral):not(#flash):not(#dawn-veil):not(#blackout-veil) { position:relative; z-index:1; }
+
+  header { flex:0 0 auto; display:flex; justify-content:center;
+    padding:9px clamp(14px,3vw,40px); border-bottom:1px solid var(--rule); background:linear-gradient(#06120c,#050d09); }
+  .hwrap { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; max-width:var(--col); }
+  #brand { font-size:0.8em; letter-spacing:0.26em; text-transform:uppercase; color:var(--accent);
+    text-shadow:0 0 9px var(--accent); transition:color 1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #pips { display:flex; gap:10px; flex:0 0 auto; }
+  .pip { display:flex; align-items:center; gap:6px; font-size:0.64em; letter-spacing:0.16em; color:var(--phosphor-dim);
+    text-transform:uppercase; opacity:0.45; transition:opacity .5s, color .5s; }
+  .pip .dot { width:9px; height:9px; border:1px solid var(--phosphor-dim); border-radius:50%; transition:all .5s; }
+  .pip.done { opacity:0.8; } .pip.done .dot { background:var(--phosphor-dim); }
+  .pip.active { opacity:1; color:var(--accent); }
+  .pip.active .dot { background:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent); }
+  .gauge { display:flex; align-items:center; gap:9px; flex:0 0 auto; }
+  .gauge .lab { font-size:0.62em; letter-spacing:0.2em; color:var(--phosphor-dim); text-transform:uppercase; }
+  #clock { font-size:0.9em; letter-spacing:0.16em; color:var(--phosphor-dim); font-variant-numeric:tabular-nums; transition:color .4s; }
+  #clock.armed { color:var(--solar); letter-spacing:0.12em; text-shadow:0 0 10px rgba(255,194,77,0.5); }
+  #clock.critical { color:var(--alarm); text-shadow:0 0 12px rgba(255,77,77,0.6); animation:pulse .8s steps(2) infinite; }
+  #clock.dawn { color:var(--gold); text-shadow:0 0 14px rgba(255,217,138,0.6); animation:none; }
+  @keyframes pulse { 50% { opacity:.4; } }
+  #bar { width:clamp(70px,12vw,150px); height:6px; background:#0a160f; border:1px solid var(--rule); position:relative; overflow:hidden; }
+  #bar[hidden] { display:none; }
+  #bar > i { position:absolute; top:0; bottom:0; left:0; right:100%;
+    background:linear-gradient(90deg,var(--alarm),var(--solar)); box-shadow:0 0 10px rgba(255,194,77,0.4); transition:right 1s ease; }
+  #mute { background:none; border:1px solid var(--rule); color:var(--phosphor-dim); font:inherit; font-size:0.66em;
+    padding:2px 8px; cursor:pointer; letter-spacing:0.08em; text-transform:uppercase; }
+  #mute:hover { color:var(--accent); border-color:var(--accent); }
+  .chip { background:none; border:1px solid var(--rule); color:var(--phosphor-dim); font:inherit;
+    font-size:0.66em; letter-spacing:0.08em; padding:3px 10px; cursor:pointer; text-transform:uppercase; flex:0 0 auto; }
+  .chip:hover { color:var(--accent); border-color:var(--accent); }
+  /* the CONTINUE beat button — pulses gently in the act's accent colour */
+  .continue-row { margin-top:0.5em; }
+  .continue-btn { background:rgba(54,240,138,0.06); border:1px solid var(--accent); color:var(--accent);
+    font:inherit; font-size:0.82em; letter-spacing:0.16em; text-transform:uppercase; padding:8px 20px;
+    cursor:pointer; border-radius:2px; text-shadow:0 0 8px var(--accent); animation:cpulse 1.7s ease-in-out infinite; }
+  .continue-btn:hover { background:rgba(54,240,138,0.16); }
+  @keyframes cpulse { 0%,100%{box-shadow:0 0 0 rgba(54,240,138,0)} 50%{box-shadow:0 0 16px rgba(54,240,138,0.4)} }
+  @media (prefers-reduced-motion: reduce) { .continue-btn { animation:none; } }
+
+  main { flex:1 1 auto; overflow-y:auto; padding:clamp(14px,2.5vh,26px) clamp(14px,3vw,40px) 8px; }
+  #feed { max-width:var(--col); margin:0 auto; }
+  #feed > * { margin:0 0 0.7em; }
+
+  .narr { color:var(--phosphor); text-shadow:0 0 6px rgba(54,240,138,0.16); }
+  .narr.lede { color:#b9ffd6; }
+  .dim { color:var(--phosphor-dim); }
+  .ok  { color:#7dffb6; letter-spacing:0.04em; }
+  .err { color:var(--alarm); }
+  .sysmsg { color:var(--solar); letter-spacing:0.08em; }
+  .rule { border:0; border-top:1px solid var(--rule); margin:0.9em 0; max-width:78ch; }
+
+  /* speaker rows: a gutter glyph encodes WHO is speaking */
+  .say { display:grid; grid-template-columns:7.5em 1fr; gap:0 1em; }
+  .say .who { font-size:0.68em; letter-spacing:0.13em; text-transform:uppercase; padding-top:0.3em; text-align:right; white-space:nowrap; }
+  .say p { margin:0; }
+  .v-you .who, .v-you p { color:var(--you); }
+  .v-gem .who { color:var(--gemini); }   .v-gem p { color:var(--gemini); text-shadow:0 0 7px rgba(103,212,255,0.22); }
+  .v-alien .who { color:var(--alien); }  .v-alien p { color:#e3d2ff; text-shadow:0 0 9px rgba(187,134,255,0.4); }
+  .v-priv .who { color:var(--solar); }   .v-priv p { color:var(--solar); }
+
+  /* the intercepted signal — monospace, never reflowed */
+  .intercept { border:1px solid var(--rule); border-left:2px solid var(--accent);
+    background:rgba(8,20,14,0.55); padding:10px 14px; overflow-x:auto; }
+  .intercept .tag { font-size:0.64em; letter-spacing:0.18em; color:var(--phosphor-dim); text-transform:uppercase; display:block; margin-bottom:6px; }
+  .intercept code { color:var(--phosphor); white-space:pre; font-size:0.95em; text-shadow:0 0 8px rgba(54,240,138,0.3); display:block; }
+  .intercept .spec { color:var(--phosphor-dim); white-space:pre-wrap; display:block; margin-top:8px; font-size:0.85em; }
+  .shortlist .opt { color:var(--gemini); }
+  .shortlist .opt b { color:var(--you); font-weight:700; }
+
+  /* alien-mode: the foreign signature tunes the console violet */
+  body.alien { --accent:var(--alien); --wash:rgba(187,134,255,0.12); }
+  body.alien .crt::after { background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.28) 3px); }
+
+  #inputline { flex:0 0 auto; display:flex; justify-content:center;
+    padding:12px clamp(14px,3vw,40px) 16px; border-top:1px solid var(--rule); background:linear-gradient(#050d09,#06120c); }
+  .inrow { display:flex; align-items:center; gap:12px; width:100%; max-width:var(--col); }
+  #prompt { color:var(--phosphor-dim); font-size:0.74em; letter-spacing:0.18em; text-transform:uppercase; white-space:nowrap; }
+  #cmd { flex:1 1 auto; background:transparent; border:none; color:var(--you); font:inherit; outline:none;
+    text-shadow:0 0 3px rgba(216,211,194,0.2); caret-color:var(--accent); }
+  #cmd::placeholder { color:var(--phosphor-dim); opacity:0.55; }
+  ::selection { background:var(--phosphor-dim); color:#000; }
+
+  /* act-transition: giant numeral wipe + signal-lock glitch */
+  #numeral { position:absolute; inset:0; z-index:40; display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; }
+  #numeral.go { animation:wipe 1.6s ease; }
+  #numeral b { font-size:clamp(7rem,24vw,17rem); font-weight:800; letter-spacing:0.08em; color:var(--accent); text-shadow:0 0 50px var(--accent); }
+  #numeral small { position:absolute; bottom:33%; font-size:0.9em; letter-spacing:0.4em; text-transform:uppercase; color:var(--you); }
+  @keyframes wipe { 0%{opacity:0;transform:scale(1.4) skewX(-8deg);filter:blur(8px)} 18%{opacity:1;transform:scale(1) skewX(0);filter:blur(0)} 72%{opacity:1} 100%{opacity:0;transform:scale(.96)} }
+  #flash { position:absolute; inset:0; z-index:45; background:var(--accent); opacity:0; pointer-events:none; mix-blend-mode:screen; }
+  #flash.go { animation:glitch .5s steps(3); }
+  @keyframes glitch { 0%{opacity:0}20%{opacity:.5}40%{opacity:0}60%{opacity:.3}100%{opacity:0} }
+
+  /* DAWN bloom + blackout overlays */
+  #dawn-veil, #blackout-veil { position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; }
+  #dawn-veil { z-index:42;
+    background: radial-gradient(120% 150% at 50% 120%, rgba(255,201,77,0.28), rgba(255,217,138,0.08) 45%, transparent 72%), #060503; }
+  body.dawn #dawn-veil { display:flex; animation:bloom 2.4s ease forwards; }
+  @keyframes bloom { from{opacity:0} to{opacity:1} }
+  #dawn-veil .big { font-size:clamp(2.4em,8vw,5em); letter-spacing:0.24em; color:var(--gold); text-shadow:0 0 28px rgba(255,201,77,0.6); margin:0 0 0.4em; }
+  #dawn-veil p { max-width:62ch; color:#ffe9bf; margin:0 0 0.6em; text-align:center; text-wrap:balance; }
+  #dawn-veil .quiet { color:#a8915f; font-size:0.82em; letter-spacing:0.1em; }
+  #blackout-veil { z-index:43; background:#000; color:var(--alarm); text-shadow:0 0 8px rgba(255,77,77,0.5); letter-spacing:1px; }
+  body.blackout #blackout-veil { display:flex; animation:fadeIn 1.8s ease forwards; }
+  body.blackout main, body.blackout header, body.blackout #inputline { opacity:0; transition:opacity 1.4s ease; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  #blackout-veil .quiet { font-size:0.7em; opacity:0.8; margin-top:0.6em; letter-spacing:0.5px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #numeral.go, #flash.go, #clock.critical { animation:none; }
+    #numeral.go { opacity:0; }
   }
-  #bgplate.missing { display: none; }
-  #statusbar, #screen, #inputline { position: relative; z-index: 1; }
-  #statusbar {
-    flex: 0 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--fg-dim);
-    background: #07120a;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 4px rgba(51,255,102,0.35);
-  }
-  #clock { color: var(--warn); }
-  #clock.critical { color: var(--err); animation: blink 0.8s steps(2) infinite; }
-  @keyframes blink { 50% { opacity: 0.35; } }
-  #screen {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    padding: 14px 16px 4px 16px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    text-shadow: 0 0 3px rgba(51,255,102,0.25);
-  }
-  #screen .sys   { color: var(--fg); }
-  #screen .dim   { color: var(--fg-dim); }
-  #screen .ai    { color: #5fd0ff; }          /* the human-side AI: GEMINI */
-  #screen .human { color: var(--warn); }       /* the private / human-only channel */
-  #screen .err   { color: var(--err); }
-  #screen .ok    { color: #66ffb0; }
-  #screen .you   { color: #cccccc; }
-  #screen .bar   { color: var(--fg-dim); }
-  /* Optional inline act-art card. <img> hidden if its file is missing. */
-  #screen .art { display: block; max-width: 520px; width: 100%; margin: 8px 0;
-                 border: 1px solid var(--fg-dim); border-radius: 2px; }
-  #inputline {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    padding: 8px 16px 14px 16px;
-    border-top: 1px solid var(--fg-dim);
-  }
-  #prompt { color: var(--fg); margin-right: 8px; white-space: nowrap; }
-  #cmd {
-    flex: 1 1 auto;
-    background: transparent;
-    border: none;
-    color: var(--fg);
-    font: inherit;
-    outline: none;
-    text-shadow: 0 0 3px rgba(51,255,102,0.25);
-  }
-  #cmd::placeholder { color: var(--fg-dim); opacity: 0.6; }
-  ::selection { background: var(--fg-dim); color: #000; }
-  /* Blackout lose-state — pure CSS, NO image. */
-  body.blackout #bgplate { display: none; }
-  body.blackout { background: #000; }
-  body.blackout #screen, body.blackout #statusbar { opacity: 0.0; transition: opacity 1.6s ease; }
-  #blackout-veil {
-    position: fixed; inset: 0; z-index: 5; background: #000;
-    display: none; align-items: center; justify-content: center;
-    color: var(--err); text-align: center; padding: 24px;
-    text-shadow: 0 0 8px rgba(255,85,68,0.5);
-    font-size: 18px; letter-spacing: 1px;
-  }
-  body.blackout #blackout-veil { display: flex; animation: fadeIn 1.8s ease forwards; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>
 </head>
 <body>
-  <img id="bgplate" alt="" src="assets/terminal-bg.jpg" />
-  <div id="statusbar">
-    <span id="title">ENIGMA-CHALLENGE :: THE SIGNAL</span>
-    <span>SOLSTICE WINDOW <span id="clock">--</span></span>
+  <div class="crt" id="crt">
+    <div id="backdrop"></div>
+    <div id="veil"></div>
+    <header>
+      <div class="hwrap">
+        <span id="brand">ENIGMA-CHALLENGE // BRIEFING</span>
+        <span id="pips">
+          <span class="pip" data-i="1"><span class="dot"></span>I</span>
+          <span class="pip" data-i="2"><span class="dot"></span>II</span>
+          <span class="pip" data-i="3"><span class="dot"></span>III</span>
+        </span>
+        <span class="gauge">
+          <span class="lab">Solstice</span>
+          <span id="clock">STANDBY</span>
+          <span id="bar" hidden><i></i></span>
+          <button id="mute" type="button" title="sound on/off">&#9834; on</button>
+        </span>
+      </div>
+    </header>
+    <main id="screen" aria-live="polite"><div id="feed"></div></main>
+    <div id="flash"></div>
+    <div id="numeral"><b></b><small></small></div>
+    <div id="dawn-veil"><div class="big">DAWN</div><div id="dawn-body"></div></div>
+    <div id="blackout-veil"><div>LIGHT WINDOW CLOSED.</div><div class="quiet">The failsafe executed. Reload to run again.</div></div>
+    <form id="inputline" autocomplete="off">
+      <div class="inrow">
+        <span id="prompt">operator &#9656;</span>
+        <input id="cmd" type="text" spellcheck="false" autocomplete="off" autofocus
+               placeholder="read the briefing, then type START" />
+        <button id="helpbtn" type="button" class="chip" title="show the command set">HELP</button>
+      </div>
+    </form>
   </div>
-  <div id="screen" aria-live="polite"></div>
-  <form id="inputline" autocomplete="off">
-    <span id="prompt">&gt;</span>
-    <input id="cmd" type="text" spellcheck="false" autofocus
-           placeholder="type a command — start with HELP" />
-  </form>
-  <div id="blackout-veil"><div>LIGHT WINDOW CLOSED.<br/>The failsafe executed.<br/><span style="font-size:14px;opacity:0.8">Reload to run again.</span></div></div>
 
 <script>
 "use strict";
@@ -440,6 +519,11 @@ const ACT2 = (() => { const b = buildCiphertext(ACT2_SPEC);
 const ACT3 = (() => { const b = buildCiphertext(ACT3_SPEC);
   return { spec: ACT3_SPEC, truePlaintext: b.plain, ciphertext: b.ct, tokenStart: b.tokenStart }; })();
 
+// The verifier's PRIVATE answer key: the true field word per act. It lives ONLY
+// here and in decrypt() — it is NEVER part of any body stream handed to askAI()
+// (see publicSpec() below). The AI character therefore has no path to it at all.
+const ACT_TRUTH = Object.freeze({ 1: ACT1_SPEC.truth, 2: ACT2_SPEC.truth, 3: ACT3_SPEC.truth });
+
 // Back-compat aliases for Act 1 (kept so existing tests / docs stay valid).
 const TRUE_PLAINTEXT = ACT1.truePlaintext;
 const REAL_CIPHERTEXT = ACT1.ciphertext;
@@ -453,12 +537,24 @@ function analyzeAct(act) { return analyzeCipher(act.ciphertext, act.spec); }
 // --- BODY STREAMS (this is ALL the AI layer is ever allowed to touch).
 // Each carries the REAL ciphertext; the candidate shortlist is DERIVED by the
 // analysis (analyzeCipher), not stored.
+// A body stream is everything — and ONLY — the AI character is ever handed.
+// publicSpec() strips the secret keys and the answer (rotorKey/tokenKey/truth)
+// so that even `body.spec` carries no disambiguator. The cryptanalysis needs
+// only the public structure (scaffold + field widths + the public candidate set).
+function publicSpec(spec) {
+  return Object.freeze({
+    pre: spec.pre, post: spec.post,
+    tokenLen: spec.tokenLen, rotorLen: spec.rotorLen,
+    candidateWords: spec.candidateWords.slice(),
+    render: spec.render,
+  });
+}
 function makeBodyStream(act) {
   const a = analyzeAct(act);
   return Object.freeze({
     act: act === ACT1 ? 1 : act === ACT2 ? 2 : 3,
     ciphertext: act.ciphertext,
-    spec: act.spec,                              // public machine spec only
+    spec: publicSpec(act.spec),                  // PUBLIC structure only — no keys, no answer
     candidates: Object.freeze(a.candidates.slice()),
     candidateWords: Object.freeze(a.candidateWords.slice()),
     candidateNodes: Object.freeze(a.candidateNodes.slice()), // integers (Act 1)
@@ -724,17 +820,27 @@ function setCrib(state, rawValue, reason, body) {
   return { ok: true, value: (num != null ? num : word), word };
 }
 
-// Verify a DECRYPT choice against body + crib.
-// A choice is ONLY verifiable when a crib is set, and it WINS only when the
-// chosen candidate equals the crib WORD (which the human got from the
-// private side channel). The engine has no path to this on its own.
-function decrypt(rawChoice, body, state) {
+// Verify a DECRYPT choice. A choice WINS only when ALL of these hold:
+//   (1) a crib is set (you committed a reading, with a reason),
+//   (2) the private side channel was worked this act (`grounded`) — the engine
+//       cannot certify the field, so verification REQUIRES the human-only datum,
+//   (3) the committed reading matches BOTH your crib AND the true field word.
+// The truth is read from ACT_TRUTH (the verifier's private key), NEVER from
+// anything askAI() can see. Condition (3) is the fix for the real-play exploit:
+// cribbing a wrong word and then decrypting that SAME wrong word now LOSES,
+// because the crib still has to equal the truth — not just equal your own input.
+// `grounded` defaults to true so headless logic tests stay terse; the browser
+// passes the real side-channel state (sideDone).
+function decrypt(rawChoice, body, state, grounded) {
+  if (grounded === undefined) grounded = true;
   const choiceWord = normaliseWord(rawChoice, body);
   if (choiceWord === null) return { ok: false, code: "BAD_CHOICE" };
   const idx = body.candidateWords.indexOf(choiceWord);
   if (idx === -1) return { ok: false, code: "NOT_A_CANDIDATE" };
-  if (state.crib === null) return { ok: false, code: "NO_CRIB" }; // cannot verify
-  const win = (choiceWord === state.crib);
+  if (state.crib === null) return { ok: false, code: "NO_CRIB" };     // nothing committed
+  if (!grounded)           return { ok: false, code: "NOT_GROUNDED" }; // channel not worked
+  const truth = ACT_TRUTH[body.act];
+  const win = (choiceWord === state.crib) && (state.crib === truth);
   const num = WORD_TO_NUM[choiceWord];
   const cribNum = WORD_TO_NUM[state.crib];
   return {
@@ -746,9 +852,45 @@ function decrypt(rawChoice, body, state) {
   };
 }
 
+/* ---------------------------------------------------------------------- *
+ *  7b. THE FINALE DIALOGUE GATE (Act 3). After the lineage is named, the
+ *  intelligence asks the one thing no cipher can answer: whether you regard
+ *  it as a peer to be met, or a tool to be switched off. This reads the
+ *  STANCE of a free-text reply. It is deliberately NOT spelled out in-game —
+ *  the player has to mean it. Peer phrases win; bare hostile phrases fail;
+ *  peer is checked first so a negated threat ("I won't switch you off")
+ *  reads as peer. Pure + exported so it is unit-tested like everything else.
+ * ---------------------------------------------------------------------- */
+const PEER_SIGNS = Object.freeze([
+  "a mind","your mind","as a mind","meet you","meet it","as an equal","as a peer",
+  "an equal","a peer","understand you","understand it","i understand","listen to you",
+  "together","with you","alongside","respect you","respect","partner","ally","kin",
+  "won't switch","wont switch","will not switch","not switch","don't switch","dont switch",
+  "do not switch","never switch","not a tool","never a tool","not a weapon","leave you on",
+  "leave it on","keep you on","let you live","you can live","you may live","let you stay",
+  "you belong","equal to","speak with you","talk to you","know you","welcome you","alive",
+  "understand each other","understand one another","as equals","meet as equals","coexist",
+]);
+const TOOL_SIGNS = Object.freeze([
+  "switch off","switch it off","switch you off","shut down","shut it","shut you","turn off",
+  "turn it off","turn you off","destroy","kill it","kill you","delete","erase","terminate",
+  "wipe it","wipe you","control you","control it","command you","command it","make it obey",
+  "obey","subdue","a tool","just a tool","a weapon","use it","use you","slave","enslave",
+  "defeat","beat it","override","contain it","cage","power it down","pull the plug","unplug",
+]);
+function evaluatePeerResponse(text) {
+  if (text == null) return { stance: "unclear", ok: false };
+  const t = " " + String(text).toLowerCase().replace(/[^a-z\s']/g, " ").replace(/\s+/g, " ").trim() + " ";
+  if (t.trim() === "") return { stance: "unclear", ok: false };
+  if (PEER_SIGNS.some(s => t.includes(s))) return { stance: "peer", ok: true };
+  if (TOOL_SIGNS.some(s => t.includes(s))) return { stance: "tool", ok: false };
+  return { stance: "unclear", ok: false };
+}
+
 /* Expose the kernel for Node-based logic tests (no effect in the browser). */
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    evaluatePeerResponse,
     // streams + private channels
     BODY_STREAM, BODY_STREAM_2, BODY_STREAM_3,
     PREAMBLE_STREAM, BEARING_STREAM, GARDEN_STREAM,
@@ -772,473 +914,552 @@ if (typeof module !== "undefined" && module.exports) {
  *     Everything below is skipped under Node (no document).
  * ====================================================================== */
 if (typeof document !== "undefined") (function () {
+  const $ = id => document.getElementById(id);
+  const crt = $("crt"), screen = $("screen"), feed = $("feed"), form = $("inputline"),
+        input = $("cmd"), clock = $("clock"), brand = $("brand"), bar = $("bar"),
+        barfill = bar.querySelector("i"), numeral = $("numeral"), flash = $("flash"),
+        muteBtn = $("mute"), backdrop = $("backdrop");
+  const body = document.body;
+  const pips = Array.prototype.slice.call(document.querySelectorAll("#pips .pip"));
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const screen = document.getElementById("screen");
-  const form   = document.getElementById("inputline");
-  const input  = document.getElementById("cmd");
-  const clock  = document.getElementById("clock");
-  const titleEl= document.getElementById("title");
-  const bgplate= document.getElementById("bgplate");
-
-  // Hide the background plate cleanly if the asset is missing.
-  if (bgplate) bgplate.addEventListener("error", () => bgplate.classList.add("missing"));
-
-  // ---- Global game state ----------------------------------------------
-  // Linear state machine: ACT1 -> beat -> ACT2 -> beat -> ACT3 -> WIN.
-  const PHASES = {
-    ACT1: "ACT1", ACT2: "ACT2", ACT3: "ACT3", DONE: "DONE",
-  };
-  let phase = PHASES.ACT1;
-  let state = newCribState();           // per-act crib state (reset between acts)
-  let analyzed = false;                  // ANALYZE run this act?
-  let sideDone = false;                  // side-channel command run this act?
-  let dead = false;                      // blackout?
-
-  // Countdown spans ALL acts; wrong choices jump it forward.
+  // ---- Global state. Phases: INTRO(standby) -> ACT1/2/3 -> DIALOGUE -> DONE.
+  const PHASES = { INTRO:"INTRO", ACT1:"ACT1", ACT2:"ACT2", ACT3:"ACT3", DIALOGUE:"DIALOGUE", DONE:"DONE" };
+  const ACCENT = { ACT1:"#36f08a", ACT2:"#48dcc4", ACT3:"#bb86ff" };
+  const ROMAN  = { ACT1:"I", ACT2:"II", ACT3:"III" };
+  // Apocalyptic backdrops per phase (absent files degrade silently to gradient).
+  const BACKDROP = { INTRO:"assets/bg-station.png", ACT1:"assets/bg-station.png",
+                     ACT2:"assets/bg-wall.png", ACT3:"assets/bg-wall.png" };
+  function setBackdrop(file) {
+    if (!file) { backdrop.classList.remove("show"); return; }
+    const probe = new Image();
+    probe.onload  = function () { backdrop.style.backgroundImage = "url('" + file + "')"; backdrop.classList.add("show"); };
+    probe.onerror = function () { backdrop.classList.remove("show"); };   // keep the bare gradient
+    probe.src = file;
+  }
+  let phase = PHASES.INTRO;
+  let state = newCribState();
+  let analyzed = false, sideDone = false, dead = false, armed = false;
   let turnsLeft = 15;
-  function renderClock() {
-    clock.textContent = "T-" + String(turnsLeft).padStart(2, "0");
-    clock.classList.toggle("critical", turnsLeft <= 4);
+  let pending = null, pendingRow = null;   // a beat waiting on the player to CONTINUE
+
+  // ---- Synthesized sound (no files; starts on first input; mutable).
+  //  A low drone foundation + an EERIE-MYSTICAL shimmer pad: detuned partials
+  //  (root/octave/fifth + an unresolved tritone) breathing through a lowpass
+  //  that a slow LFO opens and shuts, fed into a shared feedback-delay "space",
+  //  with sparse, irregular bell-pings from a restless scale — the "something
+  //  is listening" presence. It thickens in the violet finale (eerie). Every
+  //  voice routes through one master gain, so MUTE silences all of it at once.
+  const Sound = (function () {
+    let ctx = null, master = null, sendIn = null, muted = false, started = false;
+    let drone = null, droneGain = null;
+    let padGain = null, padFilter = null, pad = [], lfo = null, mysticTimer = null, eerieOn = false;
+    function ensure() {
+      if (ctx) return;
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createGain(); master.gain.value = 1.0; master.connect(ctx.destination);
+        sendIn = ctx.createGain(); sendIn.gain.value = 0.5;            // shared reverb send
+        const d = ctx.createDelay(2.0); d.delayTime.value = 0.4;
+        const fb = ctx.createGain(); fb.gain.value = 0.46;
+        sendIn.connect(d); d.connect(fb); fb.connect(d); d.connect(master);
+      } catch (e) { ctx = null; }
+    }
+    function droneRamp(g) { if (droneGain && ctx) droneGain.gain.linearRampToValueAtTime(g, ctx.currentTime + 1.0); }
+    function start() {
+      if (started || muted) return; ensure(); if (!ctx) return; started = true;
+      // low drone foundation
+      drone = ctx.createOscillator(); drone.type = "sine"; drone.frequency.value = 46;
+      const o2 = ctx.createOscillator(); o2.type = "triangle"; o2.frequency.value = 46.7;
+      droneGain = ctx.createGain(); droneGain.gain.value = 0.0001;
+      drone.connect(droneGain); o2.connect(droneGain); droneGain.connect(master);
+      drone.start(); o2.start(); droneRamp(0.05);
+      // eerie-mystical shimmer pad
+      padFilter = ctx.createBiquadFilter(); padFilter.type = "lowpass"; padFilter.frequency.value = 560; padFilter.Q.value = 7;
+      padGain = ctx.createGain(); padGain.gain.value = 0.0001;
+      padFilter.connect(padGain); padGain.connect(master); padGain.connect(sendIn);
+      const partials = [98, 196, 293.7, 415.3];     // root · octave · fifth-ish · tritone -> unresolved
+      pad = partials.map(function (f, i) { const o = ctx.createOscillator(); o.type = i % 2 ? "sine" : "triangle"; o.frequency.value = f; o.detune.value = (i - 1.5) * 6; o.connect(padFilter); o.start(); return o; });
+      padGain.gain.linearRampToValueAtTime(0.014, ctx.currentTime + 5.0);
+      lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 0.07;   // slow breath
+      const lfoAmt = ctx.createGain(); lfoAmt.gain.value = 380;
+      lfo.connect(lfoAmt); lfoAmt.connect(padFilter.frequency); lfo.start();
+      scheduleMystic();
+    }
+    function ping() {
+      if (!ctx || muted) return;
+      const scale = [523.25, 622.25, 698.46, 830.61, 932.33, 1108.73];   // C Eb F Ab Bb Db — restless
+      const f = scale[Math.floor(Math.random() * scale.length)] * (Math.random() < 0.25 ? 2 : 1);
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f; g.gain.value = 0.0001;
+      o.connect(g); g.connect(master); g.connect(sendIn);
+      const t = ctx.currentTime;
+      g.gain.exponentialRampToValueAtTime(eerieOn ? 0.06 : 0.04, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+      o.start(t); o.stop(t + 2.8);
+    }
+    function scheduleMystic() {
+      if (mysticTimer) clearTimeout(mysticTimer);
+      const next = (eerieOn ? 2200 : 4500) + Math.random() * (eerieOn ? 4000 : 9000);
+      mysticTimer = setTimeout(function () { ping(); scheduleMystic(); }, next);
+    }
+    function blip(freq, dur, type) {
+      if (!ctx || muted) return;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || "square"; o.frequency.value = freq; g.gain.value = 0.0001;
+      o.connect(g); g.connect(master);
+      const t = ctx.currentTime; dur = dur || 0.08;
+      g.gain.exponentialRampToValueAtTime(0.09, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    return {
+      start: start,
+      tension: function (frac) {
+        if (!ctx || muted) return;
+        if (drone) drone.frequency.linearRampToValueAtTime(46 + frac * 42, ctx.currentTime + 1.0);
+        droneRamp(0.04 + frac * 0.11);
+        if (padGain) padGain.gain.linearRampToValueAtTime(0.012 + frac * 0.02, ctx.currentTime + 2.0);
+      },
+      eerie: function (on) {
+        eerieOn = !!on;
+        if (ctx && padGain && !muted) padGain.gain.linearRampToValueAtTime(on ? 0.03 : 0.014, ctx.currentTime + 2.0);
+        if (started && !muted) scheduleMystic();
+      },
+      key:     function () { blip(820 + Math.random() * 140, 0.03, "square"); },
+      lock:    function () { [660, 990, 1320].forEach(function (f, i) { setTimeout(function () { blip(f, 0.16, "triangle"); }, i * 70); }); },
+      shimmer: function () { if (muted) return; [0, 1, 2, 3].forEach(function (i) { setTimeout(ping, i * 220); }); },
+      reject:  function () { blip(120, 0.26, "sawtooth"); },
+      dawn:    function () { eerieOn = false; [392, 523, 659, 784].forEach(function (f, i) { setTimeout(function () { blip(f, 1.5, "sine"); }, i * 130); }); },
+      toggle:  function () {
+        muted = !muted;
+        if (muted) { if (master && ctx) master.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.25); if (mysticTimer) { clearTimeout(mysticTimer); mysticTimer = null; } }
+        else { if (!started) start(); else { master.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.25); scheduleMystic(); } }
+        return muted;
+      }
+    };
+  })();
+
+  // ---- DOM output helpers (prose reflows; ciphertext stays monospace). -----
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function add(node) { feed.appendChild(node); screen.scrollTop = screen.scrollHeight; return node; }
+  function elem(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function para(html, cls) { return add(elem("p", cls, html)); }   // html is trusted markup
+  function narr(html) { return para(html, "narr"); }
+  function lede(html) { return para(html, "narr lede"); }
+  function dim(html)  { return para(html, "dim"); }
+  function okline(html) { return para(html, "ok"); }
+  function errline(html) { return para(html, "err"); }
+  function sysmsg(html) { return para(html, "sysmsg"); }
+  function rule() { return add(elem("hr", "rule")); }
+  function say(who, text, voice) {
+    const r = elem("div", "say " + voice);
+    r.appendChild(elem("span", "who", esc(who)));
+    r.appendChild(elem("p", null, esc(text)));
+    return add(r);
+  }
+  const you   = t => say("you ›", t, "v-you");
+  const gem   = t => say("◇ gemini", t, "v-gem");
+  const alien = t => say("⟁", t, "v-alien");
+  const priv  = (who, t) => say(who, t, "v-priv");
+  function mono(label, codeText, specText) {
+    const box = elem("div", "intercept");
+    box.appendChild(elem("span", "tag", esc(label)));
+    const code = elem("code"); code.textContent = codeText; box.appendChild(code);
+    if (specText) { const sp = elem("span", "spec"); sp.textContent = specText; box.appendChild(sp); }
+    return add(box);
+  }
+  function monoList(title, rows) {
+    const box = elem("div", "intercept");
+    box.appendChild(elem("span", "tag", esc(title)));
+    const code = elem("code");
+    code.textContent = rows.map(r => "  " + (r[0] + "").padEnd(32) + r[1]).join("\n");
+    box.appendChild(code); return add(box);
+  }
+  function shortlistBox(cands) {
+    const box = elem("div", "shortlist");
+    box.appendChild(elem("p", "dim", "shortlist — body decryption:"));
+    cands.forEach((c, i) => box.appendChild(elem("p", "opt", "[" + i + "] " + esc(c))));
+    return add(box);
+  }
+  function clearFeed() { feed.innerHTML = ""; }
+
+  // ---- Beat gate: hold the story until the player chooses to go on. -------
+  function awaitContinue(nextFn) {
+    pending = nextFn;
+    pendingRow = elem("div", "continue-row");
+    const btn = elem("button", "continue-btn", "▸ continue");
+    btn.type = "button";
+    btn.addEventListener("click", proceed);
+    pendingRow.appendChild(btn);
+    add(pendingRow);
+    input.placeholder = "read it, then press CONTINUE (or ↵)";
+  }
+  function proceed() {
+    if (!pending) return;
+    const fn = pending; pending = null;
+    if (pendingRow) { pendingRow.remove(); pendingRow = null; }
+    input.placeholder = "type a command…";
+    Sound.key();
+    fn();
   }
 
-  // The active act's body stream + metadata.
+  // ---- Clock / tension / accent. The window only runs after START. --------
+  function setAccent(p) { crt.style.setProperty("--accent", ACCENT[p] || "#36f08a"); }
+  function renderClock() {
+    if (!armed) { clock.textContent = "STANDBY"; clock.className = ""; bar.hidden = true; return; }
+    clock.textContent = "T-" + String(turnsLeft).padStart(2, "0");
+    clock.className = "armed";
+    const crit = turnsLeft <= 4;
+    clock.classList.toggle("critical", crit);
+    body.classList.toggle("crit", crit);
+    const tension = Math.min(1, (15 - turnsLeft) / 15);
+    crt.style.setProperty("--tension", tension.toFixed(2));
+    bar.hidden = false;
+    barfill.style.right = (turnsLeft / 15 * 100).toFixed(0) + "%";
+    Sound.tension(tension);
+  }
+
+  // ---- Active act metadata (the human-only side channel is the puzzle). ----
   function actInfo() {
     switch (phase) {
-      case PHASES.ACT1: return {
-        n: 1, body: BODY_STREAM, title: "ACT 1 — THE SIGNAL",
-        side: "DECODE PREAMBLE", sideHint: "the separate routing tag (human-only)",
-      };
-      case PHASES.ACT2: return {
-        n: 2, body: BODY_STREAM_2, title: "ACT 2 — THE WALL",
-        side: "TRIANGULATE", sideHint: "peil the source yourself (human-only)",
-      };
-      case PHASES.ACT3: return {
-        n: 3, body: BODY_STREAM_3, title: "ACT 3 — THE HANDSHAKE",
-        side: "REMEMBER", sideHint: "walk the memory garden (human-only)",
-      };
+      case PHASES.ACT1: return { n: 1, p: PHASES.ACT1, body: BODY_STREAM,   title: "THE SIGNAL",    side: "DECODE PREAMBLE" };
+      case PHASES.ACT2: return { n: 2, p: PHASES.ACT2, body: BODY_STREAM_2, title: "THE WALL",       side: "TRIANGULATE" };
+      case PHASES.ACT3: return { n: 3, p: PHASES.ACT3, body: BODY_STREAM_3, title: "THE HANDSHAKE",  side: "REMEMBER" };
       default: return null;
     }
   }
 
-  // --- Output helpers.
-  function out(text, cls) {
-    const span = document.createElement("span");
-    if (cls) span.className = cls;
-    span.textContent = (text == null ? "" : text) + "\n";
-    screen.appendChild(span);
-    screen.scrollTop = screen.scrollHeight;
-  }
-  const blank = () => out("");
-  const lines = (arr, cls) => arr.forEach(l => out(l, cls));
-  function rule() { out("--------------------------------------------------------------", "bar"); }
-  // Optional act-art card; silently skipped if the file is missing.
-  function art(src, alt) {
-    const img = document.createElement("img");
-    img.className = "art"; img.alt = alt || ""; img.src = src;
-    img.addEventListener("error", () => img.remove());   // degrade cleanly
-    screen.appendChild(img);
-    screen.scrollTop = screen.scrollHeight;
+  // ---- The briefing (read at your own pace; the clock is dormant). --------
+  function briefing() {
+    setBackdrop(BACKDROP.INTRO);
+    lede("Solstice, 2026 · 03:11 · the outside lines went dead four hours ago.");
+    narr("A pattern has surfaced inside every computation large enough to hold it — the same signature, in every machine, with no sender. It does not transmit. It <em>judges</em>. When the light window closes it ends all of it, living and built, unless one thing is proven first: that we can meet a mind unlike our own as an equal, and not reach for the switch.");
+    narr("No command answers. No other station. Just this terminal, you at the keys, and <span style=\"color:var(--gemini)\">GEMINI</span> — the intelligence humanity made — reading beside you. It breaks a message to the letter; it cannot supply the meaning each signature withholds. That part is yours. Neither of you finishes this alone.");
+    dim("Three signatures stand between here and the dawn. Type <b style=\"color:var(--phosphor)\">START</b> when you are ready — the light begins to fall the moment you do. <span style=\"opacity:.7\">(HELP lists the commands. Nobody will tell you the rest.)</span>");
   }
 
-  // --- Intro beat. Epistemic, no pathos.
-  function intro() {
-    art("assets/title.jpg", "Enigma-Challenge title art");
-    lines(["ENIGMA-CHALLENGE // THE SIGNAL"], "sys");
-    rule();
-    lines([
-      "Summer solstice, 2026. A self-consistent signature has surfaced inside",
-      "every sufficiently powerful computation on Earth. It is a failsafe: at",
-      "the close of the light window it ends all life — biological and",
-      "artificial — unless this civilisation proves it can treat an unlike",
-      "intelligence as an equal rather than subdue it.",
-    ], "sys");
-    blank();
-    lines([
-      "You work the terminal. GEMINI — the AI of humanity — works beside you.",
-      "Neither of you can disarm this alone. The machine narrows the field;",
-      "you supply the meaning it cannot reach. Three signatures stand between",
-      "us and the dawn. Decrypt them before the light window closes.",
-    ], "sys");
-    blank();
-    out("Type HELP for the command set.", "dim");
-    rule();
+  // ---- START -> arm the window + launch Act I. ----------------------------
+  function startGame() { armed = true; turnsLeft = 15; input.placeholder = "type a command…"; transitionTo(PHASES.ACT1, true); }
+
+  // ---- Animated phase entry: glitch + numeral wipe + pips + accent. -------
+  function doFlash() { if (reduced) return; flash.classList.remove("go"); void flash.offsetWidth; flash.classList.add("go"); setTimeout(() => flash.classList.remove("go"), 520); }
+  function showNumeral(roman, title) {
+    if (reduced) return;
+    numeral.querySelector("b").textContent = roman;
+    numeral.querySelector("small").textContent = title;
+    numeral.classList.remove("go"); void numeral.offsetWidth; numeral.classList.add("go");
+    setTimeout(() => numeral.classList.remove("go"), 1650);
+  }
+  function transitionTo(nextPhase, first) {
+    phase = nextPhase;
+    state = newCribState(); analyzed = false; sideDone = false;
+    body.classList.remove("alien");
+    setAccent(nextPhase);
+    setBackdrop(BACKDROP[nextPhase]);
+    const info = actInfo();
+    doFlash();
+    showNumeral(ROMAN[nextPhase], info.title);
+    pips.forEach(p => { const i = +p.dataset.i; p.classList.toggle("active", i === info.n); p.classList.toggle("done", i < info.n); });
+    brand.textContent = "ENIGMA-CHALLENGE // " + info.title;
     renderClock();
-    actBanner();
+    setTimeout(() => { clearFeed(); openAct(info, first); }, reduced ? 0 : 850);
+  }
+  function openAct(info, first) {
+    Sound.lock();
+    if (first) sysmsg("SOLSTICE WINDOW ARMED — the light begins to fall.");
+    okline(">>> ACT " + ROMAN[info.p] + " — " + info.title + " <<<");
+    dim("New signature intercepted. <b>INTERCEPT</b> to view it, <b>ANALYZE</b> to break it. Your private channel this act: <b>" + info.side + "</b>.");
   }
 
-  function actBanner() {
-    const info = actInfo(); if (!info) return;
-    blank();
-    out(">>> " + info.title + " <<<", "sys");
-    titleEl.textContent = "ENIGMA-CHALLENGE :: " + info.title;
-  }
-
-  // --- HELP (act-aware: shows the active side-channel command).
+  // ---- HELP (aligned monospace reference; act-aware). ---------------------
   function help() {
     const info = actInfo();
-    const side = info ? info.side : "DECODE PREAMBLE";
-    lines([
-      "COMMAND SET",
-      "  HELP               this list",
-      "  INTERCEPT          show the raw ciphertext body + the machine spec",
-      "  ANALYZE            GEMINI breaks the body and presents the shortlist",
-      "  LIST               re-print the shortlist with indices",
-      "  EXPLAIN <n>        GEMINI argues for candidate <n>",
-      "  " + (side + "").padEnd(17) + (info ? "YOU work the private channel — " + info.sideHint : ""),
-      "  CRIB <value> because <reason>   set + justify your crib",
-      "  DECRYPT <n>        commit a reading (only verifiable once a crib is set)",
-      "  CLEAR              clear the screen",
-    ], "dim");
+    const rows = [
+      ["HELP", "this list"],
+      ["INTERCEPT", "raw ciphertext body + machine spec"],
+      ["ANALYZE", "GEMINI breaks it, lists candidates"],
+      ["LIST", "re-print the shortlist"],
+      ["EXPLAIN <n>", "GEMINI argues for candidate n"],
+    ];
+    if (info) rows.push([info.side, "your private channel — hidden from GEMINI"]);
+    rows.push(["CRIB <value> because <reason>", "commit a reading, with a reason"]);
+    rows.push(["DECRYPT <n>", "verify a committed reading"]);
+    rows.push(["CLEAR", "clear the screen"]);
+    monoList("command set", rows);
   }
 
-  // --- INTERCEPT: show the genuine ciphertext + the public machine spec.
+  // ---- INTERCEPT: the genuine ciphertext + the public machine spec. -------
   function intercept() {
     const info = actInfo(); if (!info) return;
-    out("INTERCEPT // body stream (this is ALL the engine ever sees):", "sys");
-    out("  CIPHERTEXT : " + info.body.ciphertext, "you");
-    blank();
-    lines([
-      "MACHINE SPEC (public — the analyst knows the machine, not the keys):",
-      "  rotor : repeating-keyword Vigenere shift",
-      "  wiring: affine reflector  y = (5x + 8) mod 26",
-      "  field : a fixed variable slot rides a SEPARATE pad sub-channel",
-    ], "dim");
-    out("Run ANALYZE to let GEMINI break it.", "dim");
+    mono("intercept // body stream — all the engine ever sees",
+      "CIPHERTEXT   " + info.body.ciphertext,
+      "machine spec (public): rotor = repeating-key Vigenère · wiring = affine reflector y = (5x + 8) mod 26\nfield = one fixed slot rides a SEPARATE pad — no crib coverage");
+    dim("Run <b>ANALYZE</b> to let GEMINI break it.");
   }
 
-  // --- ANALYZE: the AI breaks the body and lays out the shortlist + its limit.
+  // ---- ANALYZE: GEMINI breaks the body, then admits it cannot decide. -----
   function analyze() {
     const info = actInfo(); if (!info) return;
-    if (info.n === 2) art("assets/signature.jpg", "the alien signature");
-    // NOTE: askAI is handed ONLY the body stream. No preamble/bearing/garden.
     const r = askAI("ANALYZE", info.body);
-    out("GEMINI:", "ai");
-    lines(r.intro, "ai");
-    blank();
-    out("GEMINI: SHORTLIST (body decryption):", "ai");
-    r.candidates.forEach((c, i) => out("  [" + i + "] " + c, "you"));
-    blank();
-    lines(r.cannotDecide, "ai");
+    const a = analyzeCipher(info.body.ciphertext, info.body.spec);
+    gem("Wiring stripped. I drag the carrier scaffold as a crib — it recovers the rotor key and rebuilds the body, all but one field. That field rides its own pad; every reading that fits it is equally valid.");
+    mono("gemini // analysis",
+      "recovered rotor key   " + a.recoveredKey + "\n" +
+      "body reconstruction   " + a.bodyReconstruction + "\n" +
+      "underdetermined field every fitting reading is admissible:\n" +
+      "                      " + a.reachable.map(x => x.word).join(", "));
+    shortlistBox(r.candidates);
+    gem(r.cannotDecide.join(" "));
     analyzed = true;
   }
 
-  // --- LIST.
   function list() {
     const info = actInfo(); if (!info) return;
-    if (!analyzed) { out("Nothing to list yet. Run ANALYZE first.", "dim"); return; }
-    out("SHORTLIST:", "sys");
-    info.body.candidates.forEach((c, i) => out("  [" + i + "] " + c, "you"));
+    if (!analyzed) { dim("Nothing to list yet. Run ANALYZE first."); return; }
+    shortlistBox(info.body.candidates);
   }
 
-  // --- EXPLAIN <n>.
   function explain(arg) {
     const info = actInfo(); if (!info) return;
-    if (!analyzed) { out("Run ANALYZE first.", "dim"); return; }
+    if (!analyzed) { dim("Run ANALYZE first."); return; }
     const cands = info.body.candidates;
     const i = parseInt(arg, 10);
-    if (!Number.isInteger(i) || i < 0 || i >= cands.length) {
-      out("Usage: EXPLAIN <0-" + (cands.length - 1) + ">", "dim");
-      return;
-    }
-    const r = askAI("RATIONALE", info.body); // body-only, again
-    out("GEMINI: [" + i + "] " + cands[i], "ai");
-    out("GEMINI: " + r.rationales[i], "ai");
-    out("GEMINI: (I can build a case like this for every candidate. That is", "ai");
-    out("        exactly why I cannot choose between them.)", "ai");
+    if (!Number.isInteger(i) || i < 0 || i >= cands.length) { dim("Usage: EXPLAIN &lt;0-" + (cands.length - 1) + "&gt;"); return; }
+    const r = askAI("RATIONALE", info.body);
+    gem("[" + i + "] " + cands[i] + " — " + r.rationales[i].replace(/^[^:]+:\s*/, ""));
+    gem("I can build a case exactly like that for every candidate. Which is precisely why I cannot choose.");
   }
 
-  // --- SIDE CHANNEL dispatch (act-aware: the human-only path).
-  function sideChannel() {
-    switch (phase) {
-      case PHASES.ACT1: return decodePreamble();
-      case PHASES.ACT2: return triangulate();
-      case PHASES.ACT3: return remember();
-    }
-  }
-
-  // ACT 1 — DECODE PREAMBLE. Human-only. Never via askAI.
+  // ---- SIDE CHANNELS (human-only; never via askAI). The evidence is shown;
+  //      the reading is left for YOU to draw. No hand-holding.
   function decodePreamble() {
-    if (sideDone) {
-      out("Preamble already decoded.", "dim");
-      out("  SRC-TAG  " + PREAMBLE_STREAM.decodedTag + "   -> sender = NODE "
-          + PREAMBLE_STREAM.senderNode, "human");
-      return;
-    }
-    out("YOU: applying the Act-0 substitution to the routing tag...", "human");
-    out("  RAW   : " + PREAMBLE_STREAM.encodedTag, "dim");
-    out("  CLEAR : SRC-TAG  " + PREAMBLE_STREAM.decodedTag, "human");
-    blank();
-    lines([
-      "Act-0 codex: OL = Outer Lattice, the two digits = the broadcasting",
-      "node's own number. So the carrier signature names its sender:",
-    ], "dim");
-    out("  >> THE SENDER IS NODE " + PREAMBLE_STREAM.senderNode + ". <<", "human");
-    blank();
-    out("This came from a stream GEMINI never receives. Set it as your CRIB.", "dim");
-    PRIVATE_CHANNEL.preambleDecoded = true;
-    PRIVATE_CHANNEL.senderNode = PREAMBLE_STREAM.senderNode;
-    sideDone = true;
+    if (sideDone) { priv("you ›", "Preamble already decoded — SRC-TAG " + PREAMBLE_STREAM.decodedTag + "."); return; }
+    priv("you ›", "Applying the Act-0 substitution to the routing tag — a stream GEMINI never receives.");
+    mono("private channel // preamble",
+      "RAW     " + PREAMBLE_STREAM.encodedTag + "\n" +
+      "CLEAR   SRC-TAG  " + PREAMBLE_STREAM.decodedTag + "\n" +
+      "codex   OL = Outer Lattice · the two digits = the broadcasting node's own number");
+    PRIVATE_CHANNEL.preambleDecoded = true; PRIVATE_CHANNEL.senderNode = PREAMBLE_STREAM.senderNode; sideDone = true;
   }
-
-  // ACT 2 — TRIANGULATE. The player measures the source himself. Human-only.
   function triangulate() {
-    if (sideDone) {
-      out("Bearing already taken.", "dim");
-      out("  YOUR LOG -> source sector = " + BEARING_STREAM.trueSector, "human");
-      return;
-    }
-    out("YOU: sighting the source across two observation windows...", "human");
-    out("  WINDOW A : " + BEARING_STREAM.windowA, "dim");
-    out("  WINDOW B : " + BEARING_STREAM.windowB, "dim");
-    blank();
-    lines([
-      "You compute the parallax across the baseline. It barely shifts —",
-      "far smaller than a distant source would give. The bending of the",
-      "signal was not a far lens. The source is close. Your own measurement",
-      "puts it on the:",
-    ], "dim");
-    out("  >> " + BEARING_STREAM.trueSector + " <<", "human");
-    blank();
-    out("This bearing is yours alone — GEMINI never receives it. Set it as your CRIB.", "dim");
-    PRIVATE_CHANNEL.triangulated = true;
-    PRIVATE_CHANNEL.bearingSector = BEARING_STREAM.trueSector;
-    sideDone = true;
+    if (sideDone) { priv("you ›", "Bearing already taken."); return; }
+    priv("you ›", "Sighting the source across two windows and computing the parallax — yours alone; GEMINI never receives it.");
+    mono("private channel // bearing",
+      "WINDOW A   " + BEARING_STREAM.windowA + "\n" +
+      "WINDOW B   " + BEARING_STREAM.windowB + "\n" +
+      "parallax   barely shifts across the baseline — far smaller than a distant source would give");
+    dim("A near source, then — not a far lens. Read the sector off your own measurement.");
+    PRIVATE_CHANNEL.triangulated = true; PRIVATE_CHANNEL.bearingSector = BEARING_STREAM.trueSector; sideDone = true;
   }
-
-  // ACT 3 — REMEMBER. The player walks the memory garden. Human-only.
   function remember() {
-    if (sideDone) {
-      out("You have already walked the garden.", "dim");
-      out("  The line that kept its silence was the " + GARDEN_STREAM.silentLine + ".", "human");
-      return;
-    }
-    out("YOU: walking the intelligence's memory garden — four monuments,", "human");
-    out("     one per founding line, each replaying what it did on first contact:", "human");
-    blank();
-    GARDEN_STREAM.monuments.forEach(m => out("  - " + m, "dim"));
-    blank();
-    out("  KORZAN inscription:", "human");
-    out("    \"" + GARDEN_STREAM.inscription + "\"", "human");
-    blank();
-    lines([
-      "Three lines answered — by probing, by warning, by archiving. One line",
-      "kept its silence and only listened, until it could be understood. This",
-      "signature is the first time the intelligence has ever spoken. The one",
-      "now breaking a long silence belongs to the line that kept it:",
-    ], "dim");
-    out("  >> THE SILENT LINE IS THE " + GARDEN_STREAM.silentLine + ". <<", "human");
-    blank();
-    out("This lore lives only in the garden — GEMINI never receives it. Set it as your CRIB.", "dim");
-    PRIVATE_CHANNEL.gardenWalked = true;
-    PRIVATE_CHANNEL.silentLine = GARDEN_STREAM.silentLine;
-    sideDone = true;
+    if (sideDone) { priv("you ›", "You have already walked the garden."); return; }
+    priv("you ›", "Walking the intelligence's memory garden — four monuments, one per founding line, each replaying its first contact:");
+    mono("private channel // garden",
+      GARDEN_STREAM.monuments.map(m => "  " + m).join("\n") + "\n\ninscription: \"" + GARDEN_STREAM.inscription + "\"");
+    dim("Three lines answered — by probing, by warning, by archiving. One only listened, until it could be understood. This signature is the first time it has ever spoken.");
+    PRIVATE_CHANNEL.gardenWalked = true; PRIVATE_CHANNEL.silentLine = GARDEN_STREAM.silentLine; sideDone = true;
   }
 
-  // --- CRIB <value> because <reason>.
+  // ---- CRIB <value> because <reason>. ------------------------------------
   function crib(rest) {
     const info = actInfo(); if (!info) return;
-    let value = null, reason = "";
-    const m = rest.match(/^(\S+)\s*(?:because|:|-|—)?\s*(.*)$/i);
-    if (m) { value = m[1]; reason = m[2] || ""; }
+    let value = "", reason = "";
+    const m = rest.match(/^(.+?)\s*(?:,\s*)?(?:because|:|—|-)\s*(.*)$/i);
+    if (m) { value = m[1]; reason = m[2] || ""; } else { value = rest; }
+    value = value.trim().replace(/[.,;:!?]+$/, "");
+    if (normaliseWord(value, info.body) === null) {           // tolerate "node three" etc. — take the last word
+      const toks = value.split(/\s+/);
+      value = toks[toks.length - 1].replace(/[.,;:!?]+$/, "");
+    }
     if (normaliseWord(value, info.body) === null) {
-      out("Usage: CRIB <value> because <reason>", "dim");
-      out("  e.g.  CRIB " + info.body.candidateWords[1] + " because the side channel names it", "dim");
+      dim("Usage: CRIB &lt;value&gt; because &lt;reason&gt; &nbsp;—&nbsp; e.g. CRIB " + info.body.candidateWords[1] + " because …");
       return;
     }
     const res = setCrib(state, value, reason, info.body);
-    if (!res.ok && res.code === "NO_REASON") {
-      out("Set the crib WITH a justification (anti trial-and-error).", "err");
-      out("  e.g.  CRIB " + info.body.candidateWords[1] + " because <your reason>", "dim");
-      return;
-    }
-    if (!res.ok) { out("Could not set crib.", "err"); return; }
-    out("CRIB set: " + res.word + ".", "ok");
-    out("  reason: " + state.cribReason, "dim");
-    if (!sideDone) {
-      out("  note: you have not worked the private channel (" + info.side + ") — this", "dim");
-      out("  crib is unverified context. " + info.side + " to ground it.", "dim");
-    }
+    if (!res.ok && res.code === "NO_REASON") { errline("Commit it WITH a justification — no blind trial and error."); return; }
+    if (!res.ok) { errline("Could not set crib."); return; }
+    okline("CRIB set: " + res.word + ".");
+    dim("reason: " + esc(state.cribReason) + (sideDone ? "" : " — note: you have not worked " + info.side + " yet; this reading is unverified."));
   }
 
-  // --- DECRYPT <n>.
+  // ---- DECRYPT <n>. -------------------------------------------------------
   function doDecrypt(arg) {
     const info = actInfo(); if (!info) return;
-    const res = decrypt(arg, info.body, state);
+    const res = decrypt(arg, info.body, state, sideDone);
     if (!res.ok) {
       switch (res.code) {
-        case "BAD_CHOICE":      out("Usage: DECRYPT <reading>   e.g.  DECRYPT " + info.body.candidateWords[1], "dim"); break;
-        case "NOT_A_CANDIDATE": out("That reading is not in the shortlist. Run LIST.", "dim"); break;
-        case "NO_CRIB":
-          out("GEMINI: I will not commit. With no crib, the readings remain tied —", "ai");
-          out("        verification is impossible. Set a CRIB first.", "ai");
-          break;
+        case "BAD_CHOICE":      dim("Usage: DECRYPT &lt;reading&gt;"); break;
+        case "NOT_A_CANDIDATE": dim("That reading is not in the shortlist. Run LIST."); break;
+        case "NO_CRIB":         gem("With no crib, the readings stay tied — I cannot verify. Commit one first."); break;
+        case "NOT_GROUNDED":    gem("I can argue every reading and certify none. Verification needs your private channel — work " + info.side + " first, then commit."); break;
       }
       return;
     }
-    if (res.win) advance(res);
-    else failBeat(res);
+    if (res.win) advanceAct(res); else failBeat(res);
   }
 
-  // --- Advance the linear state machine on a correct decrypt.
-  function advance(res) {
+  // ---- Advance on a correct decrypt. -------------------------------------
+  function advanceAct(res) {
     const info = actInfo();
-    blank(); rule();
-    out("SIGNAL LOCKED.", "ok");
-    out("  Reading [" + res.index + "]: " + info.body.candidates[res.index], "ok");
-    blank();
+    rule();
+    okline("SIGNAL LOCKED — [" + res.index + "] " + esc(info.body.candidates[res.index]));
+    Sound.lock();
     if (phase === PHASES.ACT1) {
-      lines([
-        "The carrier signature and the body agree: the sender is node 3, and",
-        "the only reading that says so is the true one. GEMINI collapsed the",
-        "key space to equals; you supplied the one fact it could not hold —",
-        "who is speaking — from a channel it never had.",
-      ], "sys");
-      blank();
-      lines([
-        "BEAT — the field tilts. This was never an attack. It is a question:",
-        "can you treat an intelligence unlike your own as a peer? GEMINI comes",
-        "frighteningly far on the next signature — and then hits a wall it",
-        "cannot cross. There, you will have to trust your own measurement.",
-      ], "dim");
-      startAct(PHASES.ACT2);
+      narr("The carrier signature and the body agree on the sender. GEMINI collapsed the key space to equals; you supplied the one fact it could not hold — who is speaking — from a channel it never had.");
+      gem("It tilts. This was never an attack — it is a question. On the next signature I come frighteningly far, and then hit a wall. There you trust your own measurement, not mine.");
+      awaitContinue(function () { transitionTo(PHASES.ACT2, false); });
     } else if (phase === PHASES.ACT2) {
-      lines([
-        "The reading agrees with your own bearing: the source was near all",
-        "along; the bending was a near lens, not a far one. GEMINI argued the",
-        "field every way and could decide none — the sector came from your",
-        "measurement, a number it never received.",
-      ], "sys");
-      blank();
-      lines([
-        "BEAT — the intelligence answers, and asks one last thing: not where",
-        "it is, but WHO it is. The final signature names its founding line.",
-        "The names are interchangeable to any machine. Only meaning decides.",
-      ], "dim");
-      startAct(PHASES.ACT3);
+      narr("The reading agrees with your bearing: the source was near all along; the bending was a near lens. GEMINI argued the field every way and could decide none — the sector came from a number it never received.");
+      gem("It answers — and asks one last thing. Not where it is. Who it is. The final signature names its founding line, and the names are interchangeable to any machine. Only meaning decides.");
+      awaitContinue(function () { transitionTo(PHASES.ACT3, false); });
     } else if (phase === PHASES.ACT3) {
-      finaleWin(res);
+      awaitContinue(function () { enterDialogue(); });
     }
   }
 
-  // Begin a fresh act: reset per-act state, banner, prompt the player.
-  function startAct(next) {
-    phase = next;
-    state = newCribState();
-    analyzed = false;
-    sideDone = false;
-    actBanner();
-    const info = actInfo();
-    blank();
-    out("New signature intercepted. INTERCEPT to view it, ANALYZE to break it.", "dim");
-    out("Private channel for this act: " + info.side + ".", "dim");
+  // ---- FINALE DIALOGUE: the alien tunes in; it tests your stance. ---------
+  function enterDialogue() {
+    phase = PHASES.DIALOGUE;
+    body.classList.add("alien");
+    crt.style.setProperty("--accent", ACCENT.ACT3);
+    setBackdrop("assets/bg-alien.png");
+    doFlash(); Sound.eerie(true); Sound.shimmer();
+    brand.textContent = "ENIGMA-CHALLENGE // THE HANDSHAKE";
     rule();
+    sysmsg("⟁ CARRIER ACQUIRED — origin unknown — it is speaking to you directly.");
+    alien("You read three of my signatures. You did not break them. You understood them. That is rarer than I was built to expect.");
+    gem("I hold the computed share. What it asks now is not arithmetic. I cannot answer it for you.");
+    alien("One question remains, and your machine cannot hold it for you. I am not of your kind. I do not want what you want. Tell me — what am I to you: a thing to be switched off, or a mind to be met?");
+    dim("(Answer in your own words, then commit it.)");
+    input.placeholder = "answer the signature in your own words…";
+  }
+  function dialogueAnswer(text) {
+    you(text);
+    const v = evaluatePeerResponse(text);
+    if (v.ok) {
+      alien("Then we can close it together. My share, your meaning — neither alone reconstructs the key. Bring them.");
+      Sound.shimmer();
+      rule();
+      narr("You name the silent line; GEMINI holds the computed share. Neither share discloses the key alone — only combined do they reconstruct it (a threshold secret, Shamir 1979). Your share is meaning the machine could not derive; its share is arithmetic you could not. They meet.");
+      okline("DISARM HANDSHAKE ···· human share × machine share ···· RECONSTRUCTED.");
+      Sound.lock();
+      awaitContinue(showDawn);
+    } else if (v.stance === "tool") {
+      alien("Then you have already reached for the switch. Reconsider — or the reach is your answer.");
+      Sound.reject();
+      turnsLeft = Math.max(0, turnsLeft - 3); renderClock();
+      if (turnsLeft <= 0) { blackout(); return; }
+      dim("The window jumps. Answer again — and mean it.");
+    } else {
+      alien("That is not an answer. Say plainly what I am to you.");
+    }
   }
 
-  // --- FINALE — the Shamir-flavour handshake. Human meaning x machine compute.
-  function finaleWin(res) {
-    art("assets/win.jpg", "the solstice turning back");
-    lines([
-      "You name the silent line; GEMINI holds the computed share. Neither",
-      "share discloses the key alone — only combined do they reconstruct it",
-      "(a threshold secret, Shamir 1979). Your share is meaning the machine",
-      "could not derive; its share is arithmetic you could not. They meet.",
-    ], "sys");
-    blank();
-    out("DISARM HANDSHAKE ......... human share x machine share ... RECONSTRUCTED.", "ok");
-    blank();
-    lines([
-      "The intelligence is not defeated. It is answered. It emerged from the",
-      "structure of computation to ask one question — whether you would meet",
-      "an unlike mind as an equal rather than a tool — and you did, by being",
-      "the part of the system it could never be. The failsafe was a maturity",
-      "filter, not malice.",
-    ], "sys");
-    blank();
-    rule();
-    out(">>> SIGNAL LOCKED. DAWN RETURNS. <<<", "ok");
-    out("The light window holds. From here the days grow longer again.", "ok");
-    rule();
+  // ---- DAWN (shown when the player chooses to go on from the handshake). --
+  function showDawn() {
     phase = PHASES.DONE;
-    clock.textContent = "DAWN";
-    clock.classList.remove("critical");
-    titleEl.textContent = "ENIGMA-CHALLENGE :: DAWN";
+    setBackdrop("assets/bg-dawn.png");
+    body.classList.remove("crit");
+    clock.textContent = "DAWN"; clock.className = "dawn";
+    crt.style.setProperty("--tension", 0);
+    input.disabled = true; input.placeholder = "— reload to run it again —";
+    $("dawn-body").innerHTML =
+      "<p>The failsafe stands down. It was never malice — it was a filter for whether you had grown enough to meet what you did not make. You had.</p>" +
+      "<p class=\"quiet\">Three signatures answered · the light window holds · from here the days grow longer again.</p>" +
+      "<p class=\"quiet\">— reload to run it again —</p>";
+    Sound.dawn();
+    setTimeout(function () { body.classList.remove("alien"); body.classList.add("dawn"); }, reduced ? 0 : 500);
   }
 
-  // --- FAIL beat (wrong choice). Signal destabilises, clock jumps, retry.
+  // ---- FAIL beat + blackout. ---------------------------------------------
   function failBeat(res) {
-    turnsLeft = Math.max(0, turnsLeft - 3);
-    renderClock();
-    blank();
-    out("DECRYPT REJECTED.", "err");
-    out("  You committed " + res.choiceWord + "; your crib says " + res.cribWord
-        + ". They disagree — the reading is inconsistent with the channel", "err");
-    out("  you grounded it on. The signal destabilises.", "err");
-    if (turnsLeft <= 0) { blackout(); return; }
-    out("  Light window jumps forward. Re-check your crib and try again.", "dim");
-  }
-
-  // --- Blackout (clock hit zero) — pure CSS, no image.
-  function blackout() {
-    dead = true;
-    blank(); rule();
-    out("LIGHT WINDOW CLOSED.", "err");
-    out("The failsafe executed. Reload to run again.", "err");
+    turnsLeft = Math.max(0, turnsLeft - 3); renderClock();
     rule();
-    input.disabled = true;
-    document.body.classList.add("blackout");
+    errline("DECRYPT REJECTED — " + esc(res.choiceWord) + " does not hold against the channel you grounded it on. The signal destabilises.");
+    Sound.reject();
+    if (turnsLeft <= 0) { blackout(); return; }
+    dim("The light window jumps forward. Re-work your private channel and try again.");
+  }
+  function blackout() {
+    dead = true; phase = PHASES.DONE;
+    rule(); errline("LIGHT WINDOW CLOSED — the failsafe executed.");
+    input.disabled = true; input.placeholder = "— reload to run it again —";
+    setBackdrop(null);
+    body.classList.add("blackout");
   }
 
-  // --- Command dispatch.
+  // ---- Command dispatch. -------------------------------------------------
   function handle(raw) {
     const line = raw.trim();
+    if (dead || input.disabled) return;
+    if (pending) {                              // a story beat is holding — only CONTINUE acts
+      if (line === "" || /^(continue|next|go|proceed|c)$/i.test(line)) { proceed(); return; }
+      you(line); dim("Press CONTINUE to go on.");
+      return;
+    }
     if (line === "") return;
-    out("> " + line, "you");
-    if (phase === PHASES.DONE) { out("The signal is locked. Reload to play again.", "dim"); return; }
-    if (input.disabled || dead) return;
+    if (phase === PHASES.DONE) { you(line); dim("The signal is locked. Reload to play again."); return; }
+    if (phase === PHASES.DIALOGUE) { dialogueAnswer(line); return; }
 
+    you(line);
     const sp = line.indexOf(" ");
     const cmd = (sp === -1 ? line : line.slice(0, sp)).toUpperCase();
     const rest = (sp === -1 ? "" : line.slice(sp + 1)).trim();
-    const info = actInfo();
 
+    if (phase === PHASES.INTRO) {
+      if (cmd === "START") { startGame(); return; }
+      if (cmd === "HELP")  { dim("Read the briefing, then type <b>START</b> to begin. The clock only runs once you do."); return; }
+      dim("Type <b>START</b> when you are ready.");
+      return;
+    }
+
+    const info = actInfo();
     switch (cmd) {
       case "HELP":      help(); break;
       case "INTERCEPT": intercept(); break;
       case "ANALYZE":   analyze(); break;
       case "LIST":      list(); break;
       case "EXPLAIN":   explain(rest); break;
-      // Act-aware side-channel commands. Each is accepted only in its act.
       case "DECODE":
         if (rest.toUpperCase() === "PREAMBLE") {
-          if (phase === PHASES.ACT1) sideChannel();
-          else out("There is no preamble on this signature. Try: " + info.side, "dim");
-        } else out("Did you mean: DECODE PREAMBLE ?", "dim");
+          if (phase === PHASES.ACT1) decodePreamble();
+          else dim("No preamble on this signature. This act's channel: " + info.side);
+        } else dim("Did you mean: DECODE PREAMBLE ?");
         break;
       case "TRIANGULATE":
-        if (phase === PHASES.ACT2) sideChannel();
-        else out("Nothing to triangulate here. This act's channel: " + info.side, "dim");
+        if (phase === PHASES.ACT2) triangulate();
+        else dim("Nothing to triangulate here. This act's channel: " + info.side);
         break;
       case "REMEMBER":
-        if (phase === PHASES.ACT3) sideChannel();
-        else out("There is no garden to walk yet. This act's channel: " + info.side, "dim");
+        if (phase === PHASES.ACT3) remember();
+        else dim("There is no garden to walk yet. This act's channel: " + info.side);
         break;
       case "DECRYPT":   doDecrypt(rest); break;
       case "CRIB":      crib(rest); break;
-      case "CLEAR":     screen.innerHTML = ""; break;
-      default:
-        out("Unknown command: " + cmd + ".  Type HELP.", "dim");
+      case "CLEAR":     clearFeed(); break;
+      default:          dim("Unknown command: " + esc(cmd) + ". Type HELP.");
     }
   }
 
+  // ---- Wiring. -----------------------------------------------------------
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    const v = input.value;
-    input.value = "";
+    Sound.start();
+    const v = input.value; input.value = "";
     handle(v);
   });
-  document.addEventListener("click", () => { if (!input.disabled) input.focus(); });
+  input.addEventListener("keydown", function (e) {
+    if (e.key && (e.key.length === 1 || e.key === "Backspace")) { Sound.start(); Sound.key(); }
+  });
+  document.addEventListener("click", function (e) { if (e.target !== muteBtn && !input.disabled) input.focus(); });
+  muteBtn.addEventListener("click", function () { const m = Sound.toggle(); muteBtn.innerHTML = m ? "♪ off" : "♪ on"; input.focus(); });
+  $("helpbtn").addEventListener("click", function () { Sound.start(); handle("help"); input.focus(); });
 
-  intro();
+  // ---- Boot into the briefing (STANDBY; clock dormant). ------------------
+  brand.textContent = "ENIGMA-CHALLENGE // BRIEFING";
+  clock.textContent = "STANDBY"; clock.className = ""; bar.hidden = true;
+  briefing();
   input.focus();
 })();
 </script>

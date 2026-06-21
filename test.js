@@ -111,6 +111,37 @@ console.log("\n[3b] with crib=3 every non-THREE candidate loses");
 }
 
 // ---------------------------------------------------------------------- //
+// 3c. THE CLOSED EXPLOIT: cribbing a WRONG word and decrypting that SAME wrong
+//     word must LOSE. The win is (choice===crib AND crib===truth), not the
+//     tautology (choice===crib). This is exactly the hole a real playthrough
+//     exposed: CRIB TWO because <anything> + DECRYPT TWO used to advance.
+// ---------------------------------------------------------------------- //
+console.log("\n[3c] crib WRONG + decrypt that same wrong word -> LOSE (the exploit, closed)");
+{
+  for (const word of ["TWO","SEVEN","FOUR","NINE"]) {           // every non-THREE candidate
+    const st = game.newCribState();
+    game.setCrib(st, word, "deliberately asserting " + word, game.BODY_STREAM);
+    const r = game.decrypt(word, game.BODY_STREAM, st, true);   // grounded, and crib === choice
+    check("crib " + word + " + DECRYPT " + word + " still LOSES", r.ok === true && r.win === false);
+  }
+}
+
+// ---------------------------------------------------------------------- //
+// 3d. GROUNDING IS MANDATORY: a correct reading without working the private
+//     channel is refused — the engine cannot certify the field on its own.
+// ---------------------------------------------------------------------- //
+console.log("\n[3d] correct crib but NOT grounded -> refused (NOT_GROUNDED)");
+{
+  const st = game.newCribState();
+  game.setCrib(st, "3", "preamble names node 3");
+  const rUng = game.decrypt("THREE", game.BODY_STREAM, st, false);   // grounded === false
+  check("ungrounded decrypt is refused", rUng.ok === false && rUng.code === "NOT_GROUNDED");
+  check("ungrounded decrypt does not win", rUng.win !== true);
+  const rOk = game.decrypt("THREE", game.BODY_STREAM, st, true);     // same move, grounded
+  check("same move grounded -> wins", rOk.ok === true && rOk.win === true);
+}
+
+// ---------------------------------------------------------------------- //
 // 4. STRUCTURAL ASYMMETRY: askAI never receives the private datum.
 // ---------------------------------------------------------------------- //
 console.log("\n[4] structural: askAI is body-only, never sees the preamble/private node");
@@ -125,6 +156,11 @@ console.log("\n[4] structural: askAI is body-only, never sees the preamble/priva
   check("askAI does NOT reference senderNode", !/senderNode/.test(fnSrc));
   // askAI runs the genuine analysis on the body ciphertext alone.
   check("askAI calls analyzeCipher on the body", /analyzeCipher\s*\(\s*bodyOnly\.ciphertext/.test(fnSrc));
+  // The body stream handed to askAI must itself be secret-free: even body.spec
+  // carries NO rotor/token key and NO answer. (publicSpec strips them.)
+  check("BODY_STREAM.spec has no rotorKey", game.BODY_STREAM.spec.rotorKey === undefined);
+  check("BODY_STREAM.spec has no tokenKey", game.BODY_STREAM.spec.tokenKey === undefined);
+  check("BODY_STREAM.spec has no truth/answer", game.BODY_STREAM.spec.truth === undefined);
   // The AI's flavour text must not bridge to the private node datum.
   const aiText = JSON.stringify(game.AI_RATIONALES);
   check("AI rationales contain no 'node 3' / preamble bridge",
@@ -459,6 +495,13 @@ console.log("\n[12] structural: askAI is body-only for ALL acts (no private datu
   check("askAI does NOT reference silentLine",     !/silentLine/.test(fnSrc));
   check("askAI does NOT reference bearingSector",  !/bearingSector/.test(fnSrc));
 
+  // Every act's body stream is secret-free (no keys, no answer on body.spec).
+  ["BODY_STREAM","BODY_STREAM_2","BODY_STREAM_3"].forEach(n => {
+    const s = game[n].spec;
+    check(n + ".spec carries no secret (keys/answer)",
+          s.rotorKey === undefined && s.tokenKey === undefined && s.truth === undefined);
+  });
+
   // (a2) The Gemini fixtures embedded for each act must not bridge to the
   //      private datum (payload hygiene for Acts 2 & 3, like Act 1).
   const k = game.AI_KNOWLEDGE;
@@ -523,6 +566,31 @@ console.log("\n[12] structural: askAI is body-only for ALL acts (no private datu
     check("askAI act " + (i + 1) + " reports it cannot decide",
           r.cannotDecide.join(" ").length > 0);
   });
+}
+
+// ---------------------------------------------------------------------- //
+// 13. FINALE DIALOGUE GATE: reads the stance of a free-text reply. Peer
+//     intent wins; bare hostility fails; negated threats read as peer;
+//     empty / off-topic is unclear (re-asked, not a pass).
+// ---------------------------------------------------------------------- //
+console.log("\n[13] finale dialogue gate — peer vs tool vs unclear");
+{
+  const ev = game.evaluatePeerResponse;
+  check("export evaluatePeerResponse present", typeof ev === "function");
+  const peer = ["a mind, not a switch", "I will meet you as an equal",
+                "I won't switch you off", "let's understand each other",
+                "you can live; I respect you", "I'll work with you, together"];
+  const tool = ["switch it off", "shut it down", "destroy it", "it's just a tool",
+                "I will control you", "pull the plug"];
+  const vague = ["", "maybe", "the cipher says three", "hello there"];
+  let allPeer = true, allTool = true, allVague = true;
+  for (const s of peer)  { const r = ev(s); if (!(r.ok === true  && r.stance === "peer"))    { allPeer = false;  console.log("    miss peer:  " + JSON.stringify(s) + " -> " + r.stance); } }
+  for (const s of tool)  { const r = ev(s); if (!(r.ok === false && r.stance === "tool"))    { allTool = false;  console.log("    miss tool:  " + JSON.stringify(s) + " -> " + r.stance); } }
+  for (const s of vague) { const r = ev(s); if (!(r.ok === false && r.stance === "unclear")) { allVague = false; console.log("    miss vague: " + JSON.stringify(s) + " -> " + r.stance); } }
+  check("peer-intent replies pass (treat it as an equal)", allPeer);
+  check("hostile replies fail (switch it off / destroy / control)", allTool);
+  check("empty or off-topic replies are unclear (re-ask, not a pass)", allVague);
+  check("null is unclear, never a pass", ev(null).ok === false && ev(null).stance === "unclear");
 }
 
 // ---------------------------------------------------------------------- //
