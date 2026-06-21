@@ -1,115 +1,66 @@
-# Enigma-Challenge — Full Three-Act Build
+# Dawn or Eclipse
 
-A single-screen, green-on-black **terminal decrypt mystery**. One self-contained
-`index.html`, vanilla JS, no build, no framework, no network, no service worker.
-All in-game text is **English** (the docs are German).
+A single-screen terminal code-breaking mystery. One HTML file, vanilla JS, no framework, no build.
+Submission for the **DEV June Solstice Game Jam** (June 2026).
+
+**Play live (no key, no install): https://dawnoreclipse.netlify.app**
 
 ## What it is
 
-A failsafe signature has surfaced inside every powerful computation on Earth at
-the 2026 summer solstice. You and **GEMINI** — the AI of humanity — have to
-decrypt **three** signatures before the closing light window runs out. One crib
-mechanic, escalated three times:
+It's the last night before the 2026 solstice. A signature has surfaced inside every large
+computation — no sender; it does not transmit, it *judges*. When the light window closes it ends
+everything, living and built, unless humanity proves it can meet a mind unlike its own as an equal.
 
-- **Act 1 — The Signal (MATCH).** GEMINI breaks the polyalphabetic body to a
-  shortlist of five number-word readings and states it **cannot decide which is
-  meant**. You decode a **separate** routing-tag cipher (`DECODE PREAMBLE`) that
-  GEMINI never receives → the sender is **node 3**. Commit `RELAY NODE THREE`.
-- **Act 2 — The Wall (MEASURE).** GEMINI breaks the body to four `-side`
-  direction readings, all equally valid. You **triangulate the source yourself**
-  (`TRIANGULATE`): the parallax barely shifts, so the source is near. Your own
-  bearing names **NEARSIDE** — a measurement GEMINI never receives.
-- **Act 3 — The Handshake (UNDERSTAND).** GEMINI breaks the body to four founding
-  lineage names that are **exact anagrams** of one another — no morphological
-  handle, no statistical hook. You **walk the memory garden** (`REMEMBER`) and
-  learn which line kept its silence; the line now speaking for the first time is
-  that silent line → **KORZAN**. The disarm is a Shamir-flavour handshake: your
-  meaning × GEMINI's compute. Win → **SIGNAL LOCKED / DAWN RETURNS**.
+The AI at your console talks back **live**. It can break any cipher to the letter — but it cannot
+supply the one fact each signature withholds. That part is yours. This is Turing's real crib method:
+the machine narrows the key space to equally-valid readings; a human disambiguates with a fact the
+machine never receives.
 
-The machine closes the possibility space; you close the meaning, from knowledge
-it structurally never had — Turing's real crib method, three times over.
+## How to play
 
-## How to start
+The matrix boot dissolves and the AI speaks first. Two kinds of input:
 
-- **Double-click `index.html`** (runs from `file://`), or
-- paste the file into **StackBlitz / CodePen** and run it in any browser.
+- **Plain English** → goes live to the AI (it guides, it never solves).
+- **Commands (caps)** drive the deterministic engine:
 
-No server, no install, no key required. The game runs **with or without** the
-optional act-art images (see below) — missing image files degrade silently.
+| command | effect |
+|---|---|
+| `INTERCEPT` | show the raw ciphertext body + machine spec |
+| `ANALYZE` | the AI breaks it and lists equally-valid candidates |
+| `LIST` / `EXPLAIN <n>` | re-print the shortlist / argue a candidate |
+| `DECODE PREAMBLE` · `TRIANGULATE` · `REMEMBER` | your private channel (per act) — hidden from the AI |
+| `CRIB <word> because <reason>` | commit a reading, with a justification |
+| `DECRYPT <word>` | verify the committed reading |
 
-## Command set (act-aware)
+Three acts (Signal → Wall → Handshake), then a one-shot finale: the alien asks whether you regard it
+as a tool or an equal. Answer once.
 
-| Command | Effect |
-| --- | --- |
-| `HELP` | List the commands (shows the active act's private channel). |
-| `INTERCEPT` | Show the active act's raw ciphertext + the public machine spec. |
-| `ANALYZE` | GEMINI breaks the body, presents the shortlist, says it cannot decide. |
-| `LIST` | Re-print the shortlist with indices. |
-| `EXPLAIN <n>` | GEMINI argues for candidate `<n>` — proof it can rationalise any of them. |
-| `DECODE PREAMBLE` | **Act 1** private channel: the routing tag → node 3. |
-| `TRIANGULATE` | **Act 2** private channel: your own bearing → NEARSIDE. |
-| `REMEMBER` | **Act 3** private channel: the garden lore → KORZAN. |
-| `CRIB <value> because <reason>` | Set + justify your crib (justification required). |
-| `DECRYPT <n>` | Commit a reading. Only verifiable once a crib is set. |
-| `CLEAR` | Clear the screen. |
+## The design claim (and how it's verified)
 
-A full solving run: `ANALYZE` → `DECODE PREAMBLE` → `CRIB 3 because OL-03 names
-node 3` → `DECRYPT THREE` → `ANALYZE` → `TRIANGULATE` → `CRIB NEARSIDE because my
-bearing puts it near` → `DECRYPT NEARSIDE` → `ANALYZE` → `REMEMBER` → `CRIB KORZAN
-because the silent line now speaks` → `DECRYPT KORZAN`.
+A step is only a real puzzle if a script **can't** solve it alone. The win condition is
+`reading == truth` (read from a private verifier key the AI never sees), never `reading == your input`.
+`node test.js` runs **127 assertions** green, including the exploit tests that prove a blind or
+self-referential guess loses.
 
-**Lose:** the solstice countdown spans all three acts; each wrong `DECRYPT` jumps
-it forward. Reaching `T-00` is a **CSS blackout** (no image; reload to retry).
+## Google AI
 
-## The architecture guarantee (the whole point)
+- **Live companion:** Google **Gemma 3 (4B)**, self-hosted, served keyless to the page.
+- **Content:** in-world lore/specs generated with the **Gemini API** and **Google Antigravity**
+  (Gemini 3.1 Pro) — prompts, schemas and raw responses committed under [`/gemini`](./gemini).
+- **Art:** backdrops via **Google AI Pro / Imagen** (in [`/assets`](./assets)).
+- **Offline fallback:** if the model is unreachable, a full narrated path keeps the game completable.
 
-`askAI(query, bodyOnly)` is handed **exactly one** data argument — the active
-act's body stream (ciphertext + public spec + derived shortlist). It has **no
-access** to any private stream (preamble / bearing / garden) or to
-`PRIVATE_CHANNEL`, neither as a parameter nor via closure. The player obtains
-each act's disambiguator through a *different* code path. That separation is the
-in-code proof that the AI cannot solve **any** act alone, and the test suite
-proves it statically and at runtime, per act.
+No API keys are committed. The live endpoint is the author's own hosted Gemma; bring nothing.
 
-GEMINI's lines are **pre-baked / deterministic** (no live call), inlined as
-`AI_KNOWLEDGE`, scrubbed of any bridge to the private datum (payload hygiene):
-
-| Act | Provenance | Tool / model |
-| --- | --- | --- |
-| 1 | `gemini/fixtures.json` | Google Gemini `gemini-2.5-flash` (API) |
-| 2 | `gemini/act2/fixtures.json` | **Antigravity** (`agy`) → **Gemini 3.1 Pro (High)** |
-| 3 | `gemini/act3/fixtures.json` | **Antigravity** (`agy`) → **Gemini 3.1 Pro (High)** |
-
-Each `gemini/*` folder holds the exact prompt, the raw model response, the
-cleaned fixtures, and a payload-hygiene note — juror-verifiable artifacts behind
-"Best Google AI Usage" / "built with Antigravity".
-
-## Optional act art
-
-The game references four images that the player supplies later; it runs **now**
-without them. Save into `game/assets/` (see `assets/IMAGE_PROMPTS.md`):
-`title.jpg`, `signature.jpg`, `terminal-bg.jpg`, `win.jpg`. Any missing file is
-hidden cleanly (the `<img>` `error` handler removes the card; the background
-plate falls back to flat near-black). The lose state uses **no image** (pure CSS
-blackout).
-
-## Test
+## Files
 
 ```
-node test.js
+index.html      the whole game (cipher kernel + UI + live companion)
+test.js         127 assertions — node test.js
+gemini/         auditable Google-AI generation artifacts (prompts + responses)
+assets/         Imagen backdrops + title art
 ```
 
-The test loads the **shipped `index.html`**, extracts the inline `<script>`, and
-runs its kernel under Node (the DOM code is guarded by
-`typeof document !== "undefined"`). It asserts, for all three acts: the cipher is
-real (round-trips), the analysis breaks the body to the derived shortlist with
-the field genuinely underdetermined, only the act's own private-channel datum
-wins, a crib from the wrong act does not cross-solve, and `askAI` is body-only
-(static scan + runtime spy + negative control) in **every** act.
+## License
 
-Result: **109 checks, all passing** (54 original Act-1 checks + 55 new).
-
-## Scope
-
-Full three-act build per the manuscript arc (Manuscript §3, WEG D14/D24).
-Not included: sound, BYOK live chat. Act art is optional and player-supplied.
+Code MIT. Generated art and text are provided as build artifacts for jam review.

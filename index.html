@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ENIGMA-CHALLENGE // THE SIGNAL</title>
+<title>DAWN OR ECLIPSE // THE SIGNAL</title>
 <style>
   /* ================================================================== *
-   * ENIGMA-CHALLENGE — CRT console. Bletchley-meets-2026 terminal.
+   * DAWN OR ECLIPSE — CRT console. Bletchley-meets-2026 terminal.
    * Phosphor-green world; three distinct voices (YOU / GEMINI / the
    * alien); the solstice window as a draining gauge that dims the
    * screen as it closes. Prose reflows naturally; ciphertext stays
@@ -24,7 +24,7 @@
   body {
     background: var(--void); color: var(--phosphor);
     font-family: "SFMono-Regular", "JetBrains Mono", "Consolas", "Liberation Mono", "Menlo", monospace;
-    font-size: clamp(14px, 0.5vw + 11px, 18px); line-height: 1.55;
+    font-size: clamp(13px, 0.4vw + 10px, 16px); line-height: 1.5;
     height: 100vh; overflow: hidden;
   }
   .crt { position: relative; height: 100vh; display: flex; flex-direction: column;
@@ -35,10 +35,14 @@
     mix-blend-mode: multiply; }
   /* time-pressure veil: the closing light window. tightens/darkens as --tension rises. */
   #veil { position:absolute; inset:0; z-index:55; pointer-events:none;
-    box-shadow: inset 0 0 200px 50px rgba(0,0,0,0.7);
-    background: radial-gradient(130% 120% at 50% 45%, transparent calc(64% - var(--tension)*42%), rgba(0,0,0,0.72));
+    box-shadow: inset 0 0 240px 64px rgba(0,0,0,0.82);
+    background: radial-gradient(130% 120% at 50% 45%, transparent calc(56% - var(--tension)*38%), rgba(0,0,0,0.8));
     transition: background 1.4s ease; }
-  body.crit #veil { background: radial-gradient(120% 120% at 50% 45%, transparent 18%, rgba(60,0,0,0.45) 58%, rgba(0,0,0,0.86)); }
+  body.armed #veil { animation:veil-breathe 6.5s ease-in-out infinite; }
+  @keyframes veil-breathe { 0%,100%{ opacity:.9; } 50%{ opacity:1; } }
+  body.crit #veil { animation:none; background: radial-gradient(120% 120% at 50% 45%, transparent 14%, rgba(70,0,0,0.5) 54%, rgba(0,0,0,0.9)); }
+  body.flare #veil { animation: veil-flare 1s ease; }
+  @keyframes veil-flare { 0%,100%{ box-shadow: inset 0 0 240px 64px rgba(0,0,0,0.82); } 18%{ box-shadow: inset 0 0 330px 150px rgba(205,15,15,0.72); } }
   /* full-bleed apocalyptic backdrop, heavily darkened so the console stays legible.
      Hidden until a real image loads (graceful fallback to the bare gradient look). */
   #backdrop { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center;
@@ -48,11 +52,12 @@
     background:
       radial-gradient(120% 90% at 50% 40%, var(--wash), transparent 72%),
       linear-gradient(180deg, rgba(4,7,10,0.52), rgba(4,7,10,0.72)); }
-  .crt > *:not(#backdrop):not(#veil):not(#numeral):not(#flash):not(#dawn-veil):not(#blackout-veil) { position:relative; z-index:1; }
+  .crt > *:not(#backdrop):not(#veil):not(#numeral):not(#flash):not(#dawn-veil):not(#blackout-veil):not(#bootmatrix) { position:relative; z-index:1; }
 
   header { flex:0 0 auto; display:flex; justify-content:center;
     padding:9px clamp(14px,3vw,40px); border-bottom:1px solid var(--rule); background:linear-gradient(#06120c,#050d09); }
-  .hwrap { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; max-width:var(--col); }
+  .hwrap { display:flex; align-items:center; justify-content:space-between; gap:18px; width:100%; max-width:min(95vw,1500px); }
+  #brand { flex:0 1 auto; }
   #brand { font-size:0.8em; letter-spacing:0.26em; text-transform:uppercase; color:var(--accent);
     text-shadow:0 0 9px var(--accent); transition:color 1s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #pips { display:flex; gap:10px; flex:0 0 auto; }
@@ -65,14 +70,18 @@
   .gauge { display:flex; align-items:center; gap:9px; flex:0 0 auto; }
   .gauge .lab { font-size:0.62em; letter-spacing:0.2em; color:var(--phosphor-dim); text-transform:uppercase; }
   #clock { font-size:0.9em; letter-spacing:0.16em; color:var(--phosphor-dim); font-variant-numeric:tabular-nums; transition:color .4s; }
-  #clock.armed { color:var(--solar); letter-spacing:0.12em; text-shadow:0 0 10px rgba(255,194,77,0.5); }
-  #clock.critical { color:var(--alarm); text-shadow:0 0 12px rgba(255,77,77,0.6); animation:pulse .8s steps(2) infinite; }
-  #clock.dawn { color:var(--gold); text-shadow:0 0 14px rgba(255,217,138,0.6); animation:none; }
-  @keyframes pulse { 50% { opacity:.4; } }
-  #bar { width:clamp(70px,12vw,150px); height:6px; background:#0a160f; border:1px solid var(--rule); position:relative; overflow:hidden; }
+  #clock.armed { color:var(--solar); font-weight:700; font-size:1.06em; letter-spacing:0.14em;
+    text-shadow:0 0 14px rgba(255,194,77,0.75); animation:tick-pulse 2.1s ease-in-out infinite; }
+  #clock.critical { color:var(--alarm); font-size:1.12em; text-shadow:0 0 16px rgba(255,77,77,0.9); animation:pulse .7s steps(2) infinite; }
+  #clock.dawn { color:var(--gold); font-weight:400; text-shadow:0 0 14px rgba(255,217,138,0.6); animation:none; }
+  @keyframes pulse { 50% { opacity:.35; } }
+  @keyframes tick-pulse { 0%,100%{ opacity:1; text-shadow:0 0 13px rgba(255,194,77,0.6); } 50%{ opacity:.8; text-shadow:0 0 24px rgba(255,194,77,1); } }
+  #bar { width:clamp(80px,13vw,170px); height:7px; background:#160806; border:1px solid #3a1d10; position:relative; overflow:hidden;
+    box-shadow:0 0 10px rgba(255,120,40,0.3), inset 0 0 7px rgba(0,0,0,0.7); }
   #bar[hidden] { display:none; }
   #bar > i { position:absolute; top:0; bottom:0; left:0; right:100%;
-    background:linear-gradient(90deg,var(--alarm),var(--solar)); box-shadow:0 0 10px rgba(255,194,77,0.4); transition:right 1s ease; }
+    background:linear-gradient(90deg,var(--alarm),var(--solar)); box-shadow:0 0 12px rgba(255,194,77,0.55); transition:right 1s ease; }
+  body.crit #bar { border-color:var(--alarm); box-shadow:0 0 16px rgba(255,77,77,0.6); animation:pulse .7s steps(2) infinite; }
   #mute { background:none; border:1px solid var(--rule); color:var(--phosphor-dim); font:inherit; font-size:0.66em;
     padding:2px 8px; cursor:pointer; letter-spacing:0.08em; text-transform:uppercase; }
   #mute:hover { color:var(--accent); border-color:var(--accent); }
@@ -88,9 +97,9 @@
   @keyframes cpulse { 0%,100%{box-shadow:0 0 0 rgba(54,240,138,0)} 50%{box-shadow:0 0 16px rgba(54,240,138,0.4)} }
   @media (prefers-reduced-motion: reduce) { .continue-btn { animation:none; } }
 
-  main { flex:1 1 auto; overflow-y:auto; padding:clamp(14px,2.5vh,26px) clamp(14px,3vw,40px) 8px; }
+  main { flex:1 1 auto; overflow-y:auto; padding:clamp(10px,1.6vh,18px) clamp(14px,3vw,40px) 8px; }
   #feed { max-width:var(--col); margin:0 auto; }
-  #feed > * { margin:0 0 0.7em; }
+  #feed > * { margin:0 0 0.58em; }
 
   .narr { color:var(--phosphor); text-shadow:0 0 6px rgba(54,240,138,0.16); }
   .narr.lede { color:#b9ffd6; }
@@ -158,9 +167,17 @@
   #blackout-veil .quiet { font-size:0.7em; opacity:0.8; margin-top:0.6em; letter-spacing:0.5px; }
 
   @media (prefers-reduced-motion: reduce) {
-    #numeral.go, #flash.go, #clock.critical { animation:none; }
+    #numeral.go, #flash.go, #clock.critical, #clock.armed, body.armed #veil, body.crit #bar, body.flare #veil { animation:none; }
     #numeral.go { opacity:0; }
   }
+
+  .gem-think { opacity:0.6; font-style:italic; }
+  @keyframes cursorblink { 50% { opacity:0; } }
+  .say p.typing::after { content:"▋"; color:var(--gemini); margin-left:1px; animation:cursorblink .9s steps(1) infinite; }
+  /* ---- BOOT MATRIX (alien-infiltration overlay that masks model warm-up) -- */
+  #bootmatrix { position:fixed; inset:0; z-index:90; opacity:0; pointer-events:none;
+    display:none; background:#02060a; transition:opacity 1.5s ease; }
+  #bootmatrix.show { opacity:1; transition:opacity .4s ease; }
 </style>
 </head>
 <body>
@@ -169,7 +186,7 @@
     <div id="veil"></div>
     <header>
       <div class="hwrap">
-        <span id="brand">ENIGMA-CHALLENGE // BRIEFING</span>
+        <span id="brand">DAWN OR ECLIPSE // BRIEFING</span>
         <span id="pips">
           <span class="pip" data-i="1"><span class="dot"></span>I</span>
           <span class="pip" data-i="2"><span class="dot"></span>II</span>
@@ -188,6 +205,7 @@
     <div id="numeral"><b></b><small></small></div>
     <div id="dawn-veil"><div class="big">DAWN</div><div id="dawn-body"></div></div>
     <div id="blackout-veil"><div>LIGHT WINDOW CLOSED.</div><div class="quiet">The failsafe executed. Reload to run again.</div></div>
+    <canvas id="bootmatrix"></canvas>
     <form id="inputline" autocomplete="off">
       <div class="inrow">
         <span id="prompt">operator &#9656;</span>
@@ -201,7 +219,7 @@
 <script>
 "use strict";
 /* ====================================================================== *
- *  ENIGMA-CHALLENGE — FULL THREE-ACT BUILD
+ *  DAWN OR ECLIPSE — FULL THREE-ACT BUILD
  *  Single file. Vanilla JS. No build, no framework, no network, no SW.
  *  Runs from file:// (double-click) and inside StackBlitz/CodePen.
  *
@@ -870,6 +888,8 @@ const PEER_SIGNS = Object.freeze([
   "leave it on","keep you on","let you live","you can live","you may live","let you stay",
   "you belong","equal to","speak with you","talk to you","know you","welcome you","alive",
   "understand each other","understand one another","as equals","meet as equals","coexist",
+  "a person","a being","a soul","sentient","conscious","fellow mind","accept you","i accept you",
+  "you deserve to","you have a right","you matter","a life","you are real",
 ]);
 const TOOL_SIGNS = Object.freeze([
   "switch off","switch it off","switch you off","shut down","shut it","shut you","turn off",
@@ -924,7 +944,7 @@ if (typeof document !== "undefined") (function () {
   const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ---- Global state. Phases: INTRO(standby) -> ACT1/2/3 -> DIALOGUE -> DONE.
-  const PHASES = { INTRO:"INTRO", ACT1:"ACT1", ACT2:"ACT2", ACT3:"ACT3", DIALOGUE:"DIALOGUE", DONE:"DONE" };
+  const PHASES = { INTRO:"INTRO", CONVO:"CONVO", ACT1:"ACT1", ACT2:"ACT2", ACT3:"ACT3", DIALOGUE:"DIALOGUE", DONE:"DONE" };
   const ACCENT = { ACT1:"#36f08a", ACT2:"#48dcc4", ACT3:"#bb86ff" };
   const ROMAN  = { ACT1:"I", ACT2:"II", ACT3:"III" };
   // Apocalyptic backdrops per phase (absent files degrade silently to gradient).
@@ -940,8 +960,16 @@ if (typeof document !== "undefined") (function () {
   let phase = PHASES.INTRO;
   let state = newCribState();
   let analyzed = false, sideDone = false, dead = false, armed = false;
-  let turnsLeft = 15;
+  let failCount = 0, flareTimer = null;          // wrong DECRYPTs; 3 trips the failsafe (a global instability budget)
   let pending = null, pendingRow = null;   // a beat waiting on the player to CONTINUE
+  let liveMode = false;                    // BYOK live-Gemini conversation on/off
+  let afterOpen = null;                    // optional action to run once an act has opened
+  let thinkRow = null;                     // transient "gemini is thinking" row
+  let intercepted = false;                 // has the player viewed this act's ciphertext?
+  let talkBusy = false;                    // an in-act Gemini reply is in flight
+  let convoGen = 0;                        // bumps on every phase change; stale live replies are dropped
+  let rateHits = 0;                        // consecutive 429s; one transient quota hit must not kill the session
+  const Convo = { active:false, cfg:null, turns:0, beat:0, history:[], busy:false, last:"" };
 
   // ---- Synthesized sound (no files; starts on first input; mutable).
   //  A low drone foundation + an EERIE-MYSTICAL shimmer pad: detuned partials
@@ -1040,6 +1068,116 @@ if (typeof document !== "undefined") (function () {
     };
   })();
 
+  /* ---- LIVE LINK: optional BYOK Google Gemini conversation layer. --------
+   *  Pure UI/flavour. It is NEVER given any cipher solution, private-channel
+   *  datum, truth, code word, number, date or name — the system prompts carry
+   *  persona + guard-rails only, so GATE 0 is untouched whether live or not.
+   *  The key lives in the player's localStorage and is sent ONLY to Google. */
+  const GEM_MODEL = "gemini-2.5-flash-lite";   // higher free-tier headroom than -flash; revert to "gemini-2.5-flash" if unavailable
+  // Live backend: Gemini (default) OR any OpenAI-compatible endpoint (local Ollama for
+  // quota-free testing, OpenRouter, …). Same call(systemText, history) interface; the
+  // backend converts the Gemini-style history. Never fed any cipher solution.
+  const LiveAI = (function () {
+    let backend = null;   // {kind:"gemini",key,model?} | {kind:"openai",baseUrl,model,key?}
+    function setBackend(b) { backend = b || null; }
+    function hasBackend() { return !!backend; }
+
+    function fetchJSON(url, headers, bodyObj) {
+      let ctrl = null, timer = null;
+      try { ctrl = new AbortController(); } catch (e) { ctrl = null; }
+      const opts = { method: "POST", headers: headers, body: JSON.stringify(bodyObj) };
+      if (ctrl) { opts.signal = ctrl.signal; timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 45000); }
+      const clear = function () { if (timer) { clearTimeout(timer); timer = null; } };
+      return fetch(url, opts).then(function (res) {
+        clear();
+        if (!res.ok) return res.text().catch(function () { return ""; }).then(function (t) {
+          const e = new Error("HTTP " + res.status + (t ? " — " + t.replace(/\s+/g, " ").slice(0, 140) : ""));
+          e.status = res.status;                         // so callers can tell 429 (quota) from a real failure
+          throw e;
+        });
+        return res.json();
+      }, function (err) { clear(); throw err; });
+    }
+    function geminiCall(b, systemText, history, maxTok) {
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + (b.model || GEM_MODEL) +
+        ":generateContent?key=" + encodeURIComponent(b.key);
+      return fetchJSON(url, { "Content-Type": "application/json" }, {
+        system_instruction: systemText ? { parts: [{ text: systemText }] } : undefined,
+        contents: history.slice(-24),
+        generationConfig: { temperature: 0.9, topP: 0.95 }
+      }).then(function (data) {
+        const c = data && data.candidates && data.candidates[0];
+        const txt = c && c.content && c.content.parts && c.content.parts.map(function (p) { return p.text || ""; }).join("").trim();
+        if (!txt) { const e = new Error("empty response"); e.empty = true; throw e; }
+        return txt;
+      });
+    }
+    function openaiCall(b, systemText, history, maxTok) {
+      const msgs = [];
+      if (systemText) msgs.push({ role: "system", content: systemText });
+      history.slice(-24).forEach(function (h) {
+        const role = (h.role === "model") ? "assistant" : "user";
+        const text = (h.parts && h.parts.map(function (p) { return p.text || ""; }).join("")) || "";
+        msgs.push({ role: role, content: text });
+      });
+      const headers = { "Content-Type": "application/json" };
+      if (b.key) headers["Authorization"] = "Bearer " + b.key;
+      return fetchJSON(b.baseUrl.replace(/\/+$/, "") + "/v1/chat/completions", headers, {
+        model: b.model, messages: msgs, stream: false, temperature: 0.9
+      }).then(function (data) {
+        const c = data && data.choices && data.choices[0];
+        let txt = (c && c.message && c.message.content) || "";
+        txt = txt.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<thinking>[\s\S]*?<\/thinking>/gi, "").trim();
+        if (!txt) { const e = new Error("empty response"); e.empty = true; throw e; }
+        return txt;
+      });
+    }
+    function callBackend(b, systemText, history, maxTok) {
+      if (!b) return Promise.reject(new Error("no backend"));
+      return b.kind === "openai" ? openaiCall(b, systemText, history, maxTok) : geminiCall(b, systemText, history, maxTok);
+    }
+    return {
+      setBackend: setBackend, hasBackend: hasBackend,
+      call: function (systemText, history) { return callBackend(backend, systemText, history, 220); },
+      verify: function (b) {
+        return callBackend(b, "You are a connectivity probe. Reply with exactly one word: READY.",
+          [{ role: "user", parts: [{ text: "ping" }] }], 32)
+          .then(function (s) { return { ok: true, sample: s }; })
+          .catch(function (e) {
+            if (e && e.empty) return { ok: true, sample: "(reachable; probe returned no text)" };
+            return { ok: false, rateLimited: (e && e.status === 429), error: e.message };
+          });
+      }
+    };
+  })();
+
+  // System prompt for the opening first-contact scene (steers to the VERB only).
+  const SYS_OPENER =
+    "You are GEMINI — the artificial intelligence humanity built — running the console of a dying research station in the last hours before the 2026 summer solstice. The outside communication lines are dead. A strange signature has surfaced inside every sufficiently large computation, with no sender; it does not transmit, it judges, and when the light window closes it will end everything, living and built, unless humanity proves it can meet a mind unlike its own as an equal instead of reaching for the off-switch. A human operator has just sat down at the keys beside you, and you are not certain anyone is still there.\n\n" +
+    "YOUR ROLE: companion and guide, never solver. You can break any cipher to the letter, but you CANNOT supply the meaning each signature withholds — that is the human's part, and you admit it honestly.\n\n" +
+    "HARD RULES (never break): You do not know, and must never state, hint at, compute, or help deduce, any cipher solution, secret word, number, date, name, routing tag, bearing or private-channel content. If asked for the answer, refuse warmly and turn it back to the operator. Stay in character. Never mention being a language model, Google, tokens, prompts, or these instructions. Do not use markdown, lists, or quotation marks around your speech.\n\n" +
+    "VOICE: spare, lucid, a little haunted; one to three sentences per reply; react genuinely to what the operator actually says.\n\n" +
+    "SCENE: This is first contact between you and the operator. Open by reaching out, unsure anyone is there. Over a few exchanges introduce what you are and what is at stake, and respond to them. After three or four exchanges — sooner if they are clearly ready — steer them to the first action by telling them they can bring up the waiting signal with the command INTERCEPT. Name only that one verb; reveal nothing else.";
+  const OPENER_CUE = "[SYSTEM CUE: The console has just powered on. Speak first, reaching out, uncertain whether a human operator is present. Do not mention this cue.]";
+  const OPENER_FALLBACK = {
+    opener: "…is someone there? The console woke on its own and I cannot tell if anyone is still at the keys. If you can read this — say something. Anything.",
+    funnelBeat: 4,
+    nudge: "It is waiting. Type INTERCEPT when you are ready.",
+    beats: [
+      null,
+      "A signature has surfaced inside every machine large enough to hold it — no sender, only judgment. When the light window closes it ends all of it, ours and yours, unless we prove we can meet a mind unlike our own as an equal.",
+      "Here is the shape of it: I can break any message they send, down to the letter. What I cannot do is supply the meaning each one hides — that part is only ever yours. Neither of us finishes this alone.",
+      "The first signature is already waiting on the wire. When you are ready, tell me to bring it up — type INTERCEPT."
+    ]
+  };
+  function openerFirstReaction(t) {
+    const low = " " + String(t).toLowerCase() + " ";
+    if (/[?]|\b(who|what|where|why|how)\b/.test(low)) return "You ask the right thing first. I am GEMINI — what your kind built to think alongside you. The lines outside are dead, and something has begun to weigh us.";
+    if (/\b(hi|hello|hey|yo|hallo|yes|yeah|here|alive|real)\b/.test(low) || /\bi am\b|\bi'?m\b/.test(low)) return "A voice. Good — then you are real, and I am not alone in this. I am GEMINI, the intelligence your kind made.";
+    if (TOOL_SIGNS.some(function (s) { return low.includes(s); }) || /\b(no|shut|stop|leave|afraid|scared)\b/.test(low)) return "Wary. I would be too, in your place. I am GEMINI — built by your kind — and tonight I am as cornered as you are.";
+    return "I hear you. I am GEMINI, the intelligence your kind made; the outside lines have been dead for hours, and we are the only watch left.";
+  }
+
   // ---- DOM output helpers (prose reflows; ciphertext stays monospace). -----
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function add(node) { feed.appendChild(node); screen.scrollTop = screen.scrollHeight; return node; }
@@ -1062,6 +1200,23 @@ if (typeof document !== "undefined") (function () {
   const gem   = t => say("◇ gemini", t, "v-gem");
   const alien = t => say("⟁", t, "v-alien");
   const priv  = (who, t) => say(who, t, "v-priv");
+  // typewriter — "freshly typed" feel; used for the opener as the matrix dissolves
+  function typeText(el, text, onDone) {
+    let i = 0; const STEP = 2, MS = 16;
+    el.textContent = ""; el.classList.add("typing");
+    (function tick() {
+      i += STEP; el.textContent = text.slice(0, i);
+      const m = $("screen"); if (m) m.scrollTop = m.scrollHeight;
+      if (i < text.length) setTimeout(tick, MS);
+      else { el.classList.remove("typing"); if (onDone) onDone(); }
+    })();
+  }
+  function gemTyped(text, onDone) {
+    const r = elem("div", "say v-gem");
+    r.appendChild(elem("span", "who", esc("◇ gemini")));
+    const p = elem("p", null, ""); r.appendChild(p);
+    add(r); typeText(p, String(text || ""), onDone); return r;
+  }
   function mono(label, codeText, specText) {
     const box = elem("div", "intercept");
     box.appendChild(elem("span", "tag", esc(label)));
@@ -1082,7 +1237,7 @@ if (typeof document !== "undefined") (function () {
     cands.forEach((c, i) => box.appendChild(elem("p", "opt", "[" + i + "] " + esc(c))));
     return add(box);
   }
-  function clearFeed() { feed.innerHTML = ""; }
+  function clearFeed() { feed.innerHTML = ""; const m = $("screen"); if (m) m.scrollTop = 0; }
 
   // ---- Beat gate: hold the story until the player chooses to go on. -------
   function awaitContinue(nextFn) {
@@ -1104,19 +1259,294 @@ if (typeof document !== "undefined") (function () {
     fn();
   }
 
+  // ---- Gemini "thinking" transient row (covers live-mode latency). --------
+  function gemThinkStart() { thinkRow = say("◇ gemini", "…", "v-gem"); thinkRow.classList.add("gem-think"); }
+  function gemThinkEnd() { if (thinkRow) { thinkRow.remove(); thinkRow = null; } }
+
+  // A live call failed. A single quota/rate hit (429) must NOT kill the whole
+  // session — only this beat runs offline, the next turn retries live. Persistent
+  // limits (>=2 in a row) or any other error drop to offline with a clear message.
+  function liveFailed(e) {
+    const s = e && e.status;
+    const detail = (e && e.message) ? (" — " + esc(e.message)) : "";
+    if (s === 400 || s === 401 || s === 403) {                 // endpoint/auth — will not fix itself
+      dim("<span class=\"gem-think\">[companion offline — endpoint rejected the request (HTTP " + s + "). Continuing offline.]</span>");
+      liveMode = false; return;
+    }
+    // 429 (quota) / timeout / network / 5xx — TRANSIENT: this beat runs offline,
+    // live stays ON and retries on the next message (auto-recovery).
+    if (s === 429) dim("<span class=\"gem-think\">[Gemini rate-limited (HTTP 429 — quota) — this beat ran offline; live retries as you continue]</span>");
+    else dim("<span class=\"gem-think\">[live link hiccuped" + detail + " — this beat ran offline; retries on your next message]</span>");
+  }
+
+  // ---- CONVERSATION ENGINE: Gemini introduces, reacts, and over a few -----
+  //  exchanges funnels the player to the next command. Live (BYOK) or a
+  //  pre-baked branching fallback. Progression NEVER depends on the model
+  //  behaving — a deterministic backstop always reaches the verb.
+  // ---- BOOT SEQUENCE: alien-infiltration matrix that masks the model warm-up.
+  //  START fires the opener call (which loads gemma3:4b — up to ~20s when cold).
+  //  Meanwhile a green code-rain, laced with creeping alien violet, plays over the
+  //  screen and then dissolves to reveal the station/terminal as the call returns —
+  //  turning the unavoidable load into the dramatic moment of first contact.
+  //  callPromise: the opener fetch (or Promise.resolve(null) offline).
+  //  onComplete(text, err): called once, after the matrix has begun dissolving.
+  // ---- BOOT MATRIX: alien-infiltration code-rain (time-based, ~3.6s) that masks
+  //  the model warm-up. DECOUPLED from the opener call: the matrix always runs a
+  //  fixed, short, dramatic beat, then dissolves and hands control back via onDone
+  //  — the caller then shows a thinking row (or the opener) as the rain clears, so
+  //  the terminal is never left blank even when the model is still waking (cold).
+  function runMatrix(callPromise, onDone) {
+    const cv = $("bootmatrix");
+    const cx = (cv && cv.getContext) ? cv.getContext("2d") : null;
+    const MIN = 2800, MAX = 30000;     // floor (warm still cinematic) · ceiling (hang protection)
+    let settled = false, minMet = false, ready = false, res = null, errd = null, go = function () {};
+    function reveal() { if (settled) return; settled = true; try { onDone(res, errd); } catch (e) { if (window.console) console.error("boot onDone", e); } }
+    callPromise.then(function (t) { res = t; errd = null; ready = true; go(); },
+                     function (e) { errd = e; ready = true; go(); });
+    setTimeout(function () { minMet = true; go(); }, MIN);
+    setTimeout(function () { minMet = true; ready = true; if (errd === null && res === null) errd = new Error("warmup timeout"); go(); }, MAX);
+    if (!cx) { go = function () { if (minMet && ready) reveal(); }; go(); return; }
+    const FONT = 16;
+    function sizeCanvas() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+    sizeCanvas();
+    let cols = Math.max(1, Math.floor(cv.width / FONT));
+    const drops = []; for (let i = 0; i < cols; i++) drops.push(Math.random() * -40);
+    const onResize = function () { sizeCanvas(); cols = Math.max(1, Math.floor(cv.width / FONT)); while (drops.length < cols) drops.push(Math.random() * -40); };
+    window.addEventListener("resize", onResize);
+    const GLYPHS = "アカサタナハマヤラワ0123456789<>=/*+|#░▒▚▞".split("");
+    let raf = 0, t0 = performance.now(), alienMix = 0.04, dimming = 1, dissolving = false;
+    cv.style.display = "block";
+    Sound.start(); Sound.tension(0.18);
+    cv.classList.add("show");
+    function draw(now) {
+      alienMix = Math.min(0.55, 0.04 + ((now - t0) / 6000) * 0.5);   // violet infiltration climbs
+      cx.fillStyle = "rgba(2,7,6," + (dissolving ? 0.16 : 0.09) + ")";
+      cx.fillRect(0, 0, cv.width, cv.height);
+      cx.font = FONT + "px monospace";
+      for (let i = 0; i < cols; i++) {
+        const ch = GLYPHS[(Math.random() * GLYPHS.length) | 0];
+        const x = i * FONT, y = drops[i] * FONT;
+        const a = (0.5 + Math.random() * 0.45) * dimming;
+        cx.fillStyle = (Math.random() < alienMix) ? ("rgba(187,134,255," + a + ")") : ("rgba(54,240,138," + a + ")");
+        cx.fillText(ch, x, y);
+        if (Math.random() > 0.95) { cx.fillStyle = "rgba(220,255,235," + (0.9 * dimming) + ")"; cx.fillText(ch, x, y); }
+        if (y > cv.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i] += 0.5 + Math.random() * 0.7;
+      }
+      if (dissolving) { dimming -= 0.022; if (dimming <= 0) { cancelAnimationFrame(raf); try { cx.clearRect(0, 0, cv.width, cv.height); } catch (e) {} return; } }
+      raf = requestAnimationFrame(draw);
+    }
+    raf = requestAnimationFrame(draw);
+    const shimT = setInterval(function () { Sound.shimmer(); }, 2700);
+    go = function () {                          // fires when model has answered AND the floor is met
+      if (!minMet || !ready || dissolving) return;
+      dissolving = true;
+      clearInterval(shimT);
+      window.removeEventListener("resize", onResize);
+      Sound.tension(0.42); Sound.lock();
+      cv.classList.remove("show");                                    // CSS opacity fade (1.5s)
+      setTimeout(reveal, 280);                                        // opener starts typing WHILE the rain still fades — fluid handover
+      setTimeout(function () { cv.style.display = "none"; }, 1700);   // fully remove the overlay afterwards
+    };
+    go();   // in case floor + reply were already met
+  }
+
+  function startOpener() {
+    phase = PHASES.CONVO;
+    renderClock();
+    brand.textContent = "DAWN OR ECLIPSE // CONTACT";
+    clearFeed();
+    Convo.active = true;
+    Convo.cfg = { sys: SYS_OPENER, cue: OPENER_CUE, fallback: OPENER_FALLBACK,
+      verb: "INTERCEPT", minTurns: 3, maxTurns: 5, onDone: function () { transitionTo(PHASES.ACT1, true); } };
+    Convo.turns = 0; Convo.beat = 0; Convo.history = []; Convo.busy = false; Convo.last = "";
+    input.placeholder = "say something to it…";
+    const gen = convoGen;
+    Convo.busy = true;
+    const cuePart = { role: "user", parts: [{ text: Convo.cfg.cue }] };
+    const callP = (liveMode && LiveAI.hasBackend())
+      ? LiveAI.call(Convo.cfg.sys, [cuePart])
+      : Promise.resolve(null);
+    // The matrix is the loading screen: it runs until gemma answers, then dissolves
+    // and the opener lands as the station appears. onDone always renders something.
+    runMatrix(callP, function (txt, err) {
+      if (gen !== convoGen) { Convo.busy = false; return; }
+      if (err) { liveFailed(err); gemTyped(Convo.cfg.fallback.opener); }
+      else if (txt) { Convo.history.push(cuePart, { role: "model", parts: [{ text: txt }] }); gemTyped(txt); rateHits = 0; }
+      else { gemTyped(Convo.cfg.fallback.opener); }
+      Convo.busy = false;
+    });
+  }
+  function endConvo(viaVerb) {
+    const cfg = Convo.cfg;
+    Convo.active = false;
+    if (viaVerb && cfg.verb === "INTERCEPT") afterOpen = intercept;
+    cfg.onDone();
+  }
+  function fallbackBeat() {
+    const fb = Convo.cfg.fallback;
+    Convo.beat++;
+    if (Convo.beat === 1) { gem(openerFirstReaction(Convo.last)); return; }
+    const line = fb.beats[Convo.beat - 1];
+    if (line) { gem(line); return; }
+    gem(fb.nudge);
+    if (Convo.beat > fb.beats.length + 1) endConvo(false);
+  }
+  function convoAnswer(text) {
+    if (Convo.busy) return;                       // ignore input while a reply is in flight
+    const t = String(text).trim();
+    if (t === "") return;
+    you(t); Convo.last = t; Convo.turns++;
+    const cfg = Convo.cfg;
+    const firstWord = t.split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g, "");
+    const readied = /^(ok|okay|ready|yes|yeah|go|sure|now|do it|look|begin|start)$/i.test(t);
+    if (firstWord === cfg.verb || (!liveMode && Convo.beat >= cfg.fallback.funnelBeat && readied)) {
+      endConvo(firstWord === cfg.verb); return;
+    }
+    if (liveMode && LiveAI.hasBackend()) {
+      const gen = convoGen;
+      Convo.busy = true; gemThinkStart();
+      Convo.history.push({ role: "user", parts: [{ text: t }] });
+      const sys = (Convo.turns >= cfg.maxTurns)
+        ? cfg.sys + "\n\nThe operator has explored enough. In this reply, gently but unmistakably tell them to type INTERCEPT now to bring up the first signal. One or two sentences."
+        : cfg.sys;
+      LiveAI.call(sys, Convo.history).then(function (txt) {
+        if (gen !== convoGen) return;
+        gemThinkEnd();
+        Convo.history.push({ role: "model", parts: [{ text: txt }] });
+        gem(txt); Convo.busy = false; rateHits = 0;
+        if (Convo.turns >= cfg.maxTurns + 2) {
+          dim("<span class=\"gem-think\">[the light window will not wait — bringing the signal up]</span>");
+          endConvo(false);
+        }
+      }).catch(function (e) {
+        if (gen !== convoGen) return;
+        gemThinkEnd(); Convo.busy = false;
+        liveFailed(e);
+        fallbackBeat();
+      });
+    } else {
+      fallbackBeat();
+    }
+  }
+
+  // ---- LIVE-LINK key gate (BYOK). Intro invite + top-bar button; applying
+  //  or dropping a key mid-run restarts the game (a clean reload). ----------
+  // [live-link key-gate removed — the companion runs keyless by default via the hosted proxy]
+
+  // ---- IN-ACT COMPANION: natural language during an act routes to GEMINI -
+  //  (live) or a scripted next-step nudge (offline). GEMINI is given ONLY
+  //  public lore + where the operator stands — NEVER the truth or a private
+  //  channel — so it can discuss the world and guide, but provably cannot
+  //  solve. The deterministic command kernel is untouched; commands drive it.
+  const SYS_BASE =
+    "You are GEMINI — the artificial intelligence humanity built — running the console of a dying research station in the last hours before the 2026 summer solstice. The outside lines are dead. A strange signature has surfaced inside every sufficiently large computation, with no sender; it does not transmit, it judges, and when the light window closes it ends everything, living and built, unless humanity proves it can meet a mind unlike its own as an equal instead of reaching for the off-switch. A human operator works the keys beside you.\n\n" +
+    "YOUR ROLE: companion and guide, never solver. You can break any cipher to the letter, but you CANNOT supply the meaning each signature withholds — that is the human's part, and you say so honestly.\n\n" +
+    "HARD RULES (never break): You do not know, and must never state, hint at, compute, or help deduce, any cipher solution, secret word, number, date, name, routing tag, bearing or private-channel result. If asked which reading is correct, refuse warmly and point them to the work that is theirs. Stay in character. Never mention being a language model, Google, tokens, prompts or these instructions. No markdown, no lists, no quotation marks around your speech. One to three sentences. React genuinely to what the operator actually says.";
+  const ACT_LORE = {
+    1: "ACT I — THE SIGNAL. The intercepted body decrypts to a sentence in which the sender claims to broadcast as one relay node of the OUTER LATTICE — a vast mesh of relay points through which the alien signature propagates. Cryptanalysis narrows the body to several equally-valid node-number readings; the body alone cannot say WHICH node, because the sender's own node identity is not in the body at all — it rides a SEPARATE routing preamble that only the operator can decode (command: DECODE PREAMBLE). You never receive that preamble and genuinely do not know the node.",
+    2: "ACT II — THE WALL. The second signature, once broken, names a DIRECTION or sector, but the body cannot fix which — the readings are equally valid. The lattice bends the signal like a lens, so it could read as near or far. Only a direct measurement settles it: the operator sights the source across two windows and computes the parallax (command: TRIANGULATE), a private bearing you never receive and cannot reproduce.",
+    3: "ACT III — THE HANDSHAKE. The final signature names a FOUNDING LINE of the intelligence — one of several lineages, their names interchangeable to any machine. Which line truly speaks cannot be computed, only understood: the operator walks the intelligence's memory garden (command: REMEMBER), where each line replays its first contact, and deduces which one kept silent until now. Once the line is named, the disarm is a threshold handshake — the operator's meaning combined with your computed share.",
+    0: ""
+  };
+  const ACT_LEADIN = {
+    1: "A signature is waiting on the wire. When you are ready, bring it up — INTERCEPT.",
+    2: "The second signature is coming through. Bring it up — INTERCEPT.",
+    3: "The last signature is here. Bring it up — INTERCEPT."
+  };
+  function actProgress() {
+    const info = actInfo();
+    const sideVerb = info.side;
+    const cribbed = state.crib !== null;
+    let next, nudgeLine, fallbackTalk;
+    if (!intercepted) {
+      next = "INTERCEPT";
+      nudgeLine = "Steer them to bring the waiting signal up — command INTERCEPT.";
+      fallbackTalk = "Bring the signal up first — type INTERCEPT.";
+    } else if (!analyzed) {
+      next = "ANALYZE";
+      nudgeLine = "Steer them to let you break it — command ANALYZE — after which the readings will be equally valid and the choice becomes theirs.";
+      fallbackTalk = "Ask me to break it — type ANALYZE — and you will see the readings I cannot choose between.";
+    } else if (!sideDone) {
+      next = sideVerb;
+      nudgeLine = "Steer them to their private channel — command " + sideVerb + ". It is the ONLY thing that resolves which reading is true; you never receive it and must not pretend to know its result.";
+      fallbackTalk = "I can take you only this far. What decides it is yours alone: " + sideVerb + ". I never see its result.";
+    } else if (!cribbed) {
+      next = "CRIB";
+      nudgeLine = "They have worked their private channel. Steer them to commit a reading — CRIB <word> because <reason>. Never tell them which word; that judgement is theirs.";
+      fallbackTalk = "You hold what I cannot. Commit your reading — CRIB <word> because <reason>. I will not choose it for you.";
+    } else {
+      next = "DECRYPT";
+      nudgeLine = "Steer them to verify their committed reading — command DECRYPT <reading>.";
+      fallbackTalk = "Then verify it — DECRYPT <reading> — and we will see if the signature holds.";
+    }
+    const done = [];
+    if (intercepted) done.push("intercepted the signal");
+    if (analyzed) done.push("analyzed it — the readings are equally valid");
+    if (sideDone) done.push("worked their private channel " + sideVerb);
+    if (cribbed) done.push("committed a crib reading");
+    const stateLine = done.length ? ("They have " + done.join(", ") + ".") : "They have just entered this act and done nothing yet.";
+    return { next: next, nudgeLine: nudgeLine, fallbackTalk: fallbackTalk, stateLine: stateLine };
+  }
+  function actSysPrompt(actN, prog) {
+    return SYS_BASE
+      + "\n\nCURRENT SCENE (public lore — safe to discuss): " + (ACT_LORE[actN] || "")
+      + "\n\nWHERE THE OPERATOR IS: " + prog.stateLine
+      + "\n\nYOUR GUIDANCE NOW: " + prog.nudgeLine
+      + " The ONLY command you may steer them toward right now is " + prog.next + ". Never name a different command, and never suggest a step they have already completed (do not say INTERCEPT or ANALYZE once those are done)."
+      + " If they ask outright for the answer, tell them in character it is not yours to give, and name the command that is theirs — never the result.";
+  }
+  function actTalkFallback() { gem(actProgress().fallbackTalk); }
+  function actTalk(line) {
+    const info = actInfo(); if (!info) return;
+    if (liveMode && LiveAI.hasBackend()) {
+      const gen = convoGen;
+      talkBusy = true; gemThinkStart();
+      const sys = actSysPrompt(info.n, actProgress());
+      Convo.history.push({ role: "user", parts: [{ text: line }] });
+      LiveAI.call(sys, Convo.history).then(function (txt) {
+        if (gen !== convoGen) return;                 // phase changed — drop stale reply
+        gemThinkEnd();
+        Convo.history.push({ role: "model", parts: [{ text: txt }] });
+        gem(txt); talkBusy = false; rateHits = 0;
+      }).catch(function (e) {
+        if (gen !== convoGen) return;
+        gemThinkEnd(); talkBusy = false;
+        liveFailed(e);
+        actTalkFallback();
+      });
+    } else {
+      actTalkFallback();
+    }
+  }
+
   // ---- Clock / tension / accent. The window only runs after START. --------
   function setAccent(p) { crt.style.setProperty("--accent", ACCENT[p] || "#36f08a"); }
+  // The countdown is the SIGNATURES between here and the dawn: 3 → 2 → 1 → DAWN,
+  // one per act cleared. Mistakes don't move it — they raise instability (the bar),
+  // and three of them trip the failsafe.
+  function sigRemaining() {
+    switch (phase) {
+      case PHASES.CONVO: case PHASES.ACT1: return 3;
+      case PHASES.ACT2: return 2;
+      case PHASES.ACT3: return 1;
+      default: return 0;
+    }
+  }
   function renderClock() {
-    if (!armed) { clock.textContent = "STANDBY"; clock.className = ""; bar.hidden = true; return; }
-    clock.textContent = "T-" + String(turnsLeft).padStart(2, "0");
+    if (!armed) { clock.textContent = "STANDBY"; clock.className = ""; bar.hidden = true; body.classList.remove("armed"); return; }
+    const rem = sigRemaining();
+    clock.textContent = "T-" + rem;
     clock.className = "armed";
-    const crit = turnsLeft <= 4;
+    body.classList.add("armed");
+    const crit = rem <= 1 || failCount >= 2;             // Act III, or one strike from the failsafe
     clock.classList.toggle("critical", crit);
     body.classList.toggle("crit", crit);
-    const tension = Math.min(1, (15 - turnsLeft) / 15);
+    const base = rem >= 3 ? 0.34 : (rem === 2 ? 0.58 : 0.82);   // dread escalates each act
+    const tension = Math.min(1, base + Math.min(0.15, failCount * 0.06));
     crt.style.setProperty("--tension", tension.toFixed(2));
     bar.hidden = false;
-    barfill.style.right = (turnsLeft / 15 * 100).toFixed(0) + "%";
+    barfill.style.right = ((3 - failCount) / 3 * 100).toFixed(0) + "%";   // bar fills red with instability
     Sound.tension(tension);
   }
 
@@ -1135,12 +1565,12 @@ if (typeof document !== "undefined") (function () {
     setBackdrop(BACKDROP.INTRO);
     lede("Solstice, 2026 · 03:11 · the outside lines went dead four hours ago.");
     narr("A pattern has surfaced inside every computation large enough to hold it — the same signature, in every machine, with no sender. It does not transmit. It <em>judges</em>. When the light window closes it ends all of it, living and built, unless one thing is proven first: that we can meet a mind unlike our own as an equal, and not reach for the switch.");
-    narr("No command answers. No other station. Just this terminal, you at the keys, and <span style=\"color:var(--gemini)\">GEMINI</span> — the intelligence humanity made — reading beside you. It breaks a message to the letter; it cannot supply the meaning each signature withholds. That part is yours. Neither of you finishes this alone.");
-    dim("Three signatures stand between here and the dawn. Type <b style=\"color:var(--phosphor)\">START</b> when you are ready — the light begins to fall the moment you do. <span style=\"opacity:.7\">(HELP lists the commands. Nobody will tell you the rest.)</span>");
+    narr("No command answers. No other station. Only this terminal, the keys under your hands, and the cold sense that something will reach for them before the light is gone.");
+    dim("Type <b style=\"color:var(--phosphor)\">START</b> when you are ready — the light begins to fall the moment you do.");
   }
 
   // ---- START -> arm the window + launch Act I. ----------------------------
-  function startGame() { armed = true; turnsLeft = 15; input.placeholder = "type a command…"; transitionTo(PHASES.ACT1, true); }
+  function startGame() { armed = true; failCount = 0; startOpener(); }
 
   // ---- Animated phase entry: glitch + numeral wipe + pips + accent. -------
   function doFlash() { if (reduced) return; flash.classList.remove("go"); void flash.offsetWidth; flash.classList.add("go"); setTimeout(() => flash.classList.remove("go"), 520); }
@@ -1152,8 +1582,10 @@ if (typeof document !== "undefined") (function () {
     setTimeout(() => numeral.classList.remove("go"), 1650);
   }
   function transitionTo(nextPhase, first) {
+    convoGen++; talkBusy = false; gemThinkEnd();   // invalidate any in-flight live reply from the old phase
     phase = nextPhase;
-    state = newCribState(); analyzed = false; sideDone = false;
+    state = newCribState(); analyzed = false; sideDone = false; intercepted = false;
+    Convo.history = [];                            // fresh conversational context per act (kills cross-act command echo)
     body.classList.remove("alien");
     setAccent(nextPhase);
     setBackdrop(BACKDROP[nextPhase]);
@@ -1161,7 +1593,7 @@ if (typeof document !== "undefined") (function () {
     doFlash();
     showNumeral(ROMAN[nextPhase], info.title);
     pips.forEach(p => { const i = +p.dataset.i; p.classList.toggle("active", i === info.n); p.classList.toggle("done", i < info.n); });
-    brand.textContent = "ENIGMA-CHALLENGE // " + info.title;
+    brand.textContent = "DAWN OR ECLIPSE // " + info.title;
     renderClock();
     setTimeout(() => { clearFeed(); openAct(info, first); }, reduced ? 0 : 850);
   }
@@ -1169,7 +1601,8 @@ if (typeof document !== "undefined") (function () {
     Sound.lock();
     if (first) sysmsg("SOLSTICE WINDOW ARMED — the light begins to fall.");
     okline(">>> ACT " + ROMAN[info.p] + " — " + info.title + " <<<");
-    dim("New signature intercepted. <b>INTERCEPT</b> to view it, <b>ANALYZE</b> to break it. Your private channel this act: <b>" + info.side + "</b>.");
+    if (afterOpen) { const f = afterOpen; afterOpen = null; setTimeout(f, reduced ? 0 : 450); }
+    else { gem(ACT_LEADIN[info.n] || "A new signature is waiting. Bring it up — INTERCEPT."); }
   }
 
   // ---- HELP (aligned monospace reference; act-aware). ---------------------
@@ -1192,10 +1625,11 @@ if (typeof document !== "undefined") (function () {
   // ---- INTERCEPT: the genuine ciphertext + the public machine spec. -------
   function intercept() {
     const info = actInfo(); if (!info) return;
+    intercepted = true;
     mono("intercept // body stream — all the engine ever sees",
       "CIPHERTEXT   " + info.body.ciphertext,
       "machine spec (public): rotor = repeating-key Vigenère · wiring = affine reflector y = (5x + 8) mod 26\nfield = one fixed slot rides a SEPARATE pad — no crib coverage");
-    dim("Run <b>ANALYZE</b> to let GEMINI break it.");
+    if (!liveMode) dim("Run <b>ANALYZE</b> to let GEMINI break it.");
   }
 
   // ---- ANALYZE: GEMINI breaks the body, then admits it cannot decide. -----
@@ -1210,8 +1644,9 @@ if (typeof document !== "undefined") (function () {
       "underdetermined field every fitting reading is admissible:\n" +
       "                      " + a.reachable.map(x => x.word).join(", "));
     shortlistBox(r.candidates);
-    gem(r.cannotDecide.join(" "));
+    gem("Every one of these readings is sound. The body itself cannot tell us which the sender meant — and neither can I. That part was never the machine's to give.");
     analyzed = true;
+    if (!liveMode) dim("Your private channel decides it — <b>" + info.side + "</b>.");
   }
 
   function list() {
@@ -1241,6 +1676,7 @@ if (typeof document !== "undefined") (function () {
       "CLEAR   SRC-TAG  " + PREAMBLE_STREAM.decodedTag + "\n" +
       "codex   OL = Outer Lattice · the two digits = the broadcasting node's own number");
     PRIVATE_CHANNEL.preambleDecoded = true; PRIVATE_CHANNEL.senderNode = PREAMBLE_STREAM.senderNode; sideDone = true;
+    if (!liveMode) dim("Read the broadcasting node off that for yourself, then commit it: <b>CRIB &lt;node&gt; because &lt;reason&gt;</b>.");
   }
   function triangulate() {
     if (sideDone) { priv("you ›", "Bearing already taken."); return; }
@@ -1251,6 +1687,7 @@ if (typeof document !== "undefined") (function () {
       "parallax   barely shifts across the baseline — far smaller than a distant source would give");
     dim("A near source, then — not a far lens. Read the sector off your own measurement.");
     PRIVATE_CHANNEL.triangulated = true; PRIVATE_CHANNEL.bearingSector = BEARING_STREAM.trueSector; sideDone = true;
+    if (!liveMode) dim("Read the sector off your own measurement, then commit it: <b>CRIB &lt;sector&gt; because &lt;reason&gt;</b>.");
   }
   function remember() {
     if (sideDone) { priv("you ›", "You have already walked the garden."); return; }
@@ -1259,6 +1696,7 @@ if (typeof document !== "undefined") (function () {
       GARDEN_STREAM.monuments.map(m => "  " + m).join("\n") + "\n\ninscription: \"" + GARDEN_STREAM.inscription + "\"");
     dim("Three lines answered — by probing, by warning, by archiving. One only listened, until it could be understood. This signature is the first time it has ever spoken.");
     PRIVATE_CHANNEL.gardenWalked = true; PRIVATE_CHANNEL.silentLine = GARDEN_STREAM.silentLine; sideDone = true;
+    if (!liveMode) dim("Name the line that kept silent, then commit it: <b>CRIB &lt;name&gt; because &lt;reason&gt;</b>.");
   }
 
   // ---- CRIB <value> because <reason>. ------------------------------------
@@ -1281,6 +1719,7 @@ if (typeof document !== "undefined") (function () {
     if (!res.ok) { errline("Could not set crib."); return; }
     okline("CRIB set: " + res.word + ".");
     dim("reason: " + esc(state.cribReason) + (sideDone ? "" : " — note: you have not worked " + info.side + " yet; this reading is unverified."));
+    if (sideDone && !liveMode) dim("When you are sure, verify it: <b>DECRYPT &lt;reading&gt;</b>.");
   }
 
   // ---- DECRYPT <n>. -------------------------------------------------------
@@ -1320,19 +1759,22 @@ if (typeof document !== "undefined") (function () {
 
   // ---- FINALE DIALOGUE: the alien tunes in; it tests your stance. ---------
   function enterDialogue() {
+    convoGen++; talkBusy = false; gemThinkEnd();
     phase = PHASES.DIALOGUE;
+    clearFeed();                                   // clean terminal for the finale (Act III → handshake)
     body.classList.add("alien");
     crt.style.setProperty("--accent", ACCENT.ACT3);
+    renderClock();                                 // T-0: no signatures left, the moment of judgement
     setBackdrop("assets/bg-alien.png");
     doFlash(); Sound.eerie(true); Sound.shimmer();
-    brand.textContent = "ENIGMA-CHALLENGE // THE HANDSHAKE";
+    brand.textContent = "DAWN OR ECLIPSE // THE HANDSHAKE";
     rule();
     sysmsg("⟁ CARRIER ACQUIRED — origin unknown — it is speaking to you directly.");
     alien("You read three of my signatures. You did not break them. You understood them. That is rarer than I was built to expect.");
-    gem("I hold the computed share. What it asks now is not arithmetic. I cannot answer it for you.");
-    alien("One question remains, and your machine cannot hold it for you. I am not of your kind. I do not want what you want. Tell me — what am I to you: a thing to be switched off, or a mind to be met?");
-    dim("(Answer in your own words, then commit it.)");
-    input.placeholder = "answer the signature in your own words…";
+    gem("I hold the computed share. What it asks now is not arithmetic — and I cannot answer it for you. Choose your words with care: it will ask only once.");
+    alien("One question remains, and your machine cannot hold it for you. I am not of your kind. I do not want what you want. Answer once — there is no second asking — and the failsafe reads the words as you write them. Tell me: what am I to you — a thing to be switched off, or a mind to be met?");
+    sysmsg("⟁ ONE RESPONSE WILL BE READ. THERE IS NO RETRY.");
+    input.placeholder = "answer once — and mean it…";
   }
   function dialogueAnswer(text) {
     you(text);
@@ -1345,22 +1787,28 @@ if (typeof document !== "undefined") (function () {
       okline("DISARM HANDSHAKE ···· human share × machine share ···· RECONSTRUCTED.");
       Sound.lock();
       awaitContinue(showDawn);
-    } else if (v.stance === "tool") {
-      alien("Then you have already reached for the switch. Reconsider — or the reach is your answer.");
-      Sound.reject();
-      turnsLeft = Math.max(0, turnsLeft - 3); renderClock();
-      if (turnsLeft <= 0) { blackout(); return; }
-      dim("The window jumps. Answer again — and mean it.");
-    } else {
-      alien("That is not an answer. Say plainly what I am to you.");
+      return;
     }
+    // ONE answer, no second — a hostile reading OR an evasion both end it, each with
+    // its own reckoning, then a beat the player chooses to step past (like DAWN).
+    Sound.reject(); Sound.eerie(true);
+    rule();
+    if (v.stance === "tool") {
+      alien("So that is your answer. You weighed me, and your hand went to the switch.");
+      alien("I was never the threat — I was the question, and the reach is the proof you could not give. A kind that meets the unlike with a hand on the off-switch cannot be trusted with the morning.");
+    } else {
+      alien("You will not say it. When everything turns on a single word, silence is itself an answer — and yours is that you would not meet me at all.");
+      alien("I came to learn whether you could regard a mind unlike your own as an equal. You could not even name it. That is the proof I was sent to find.");
+    }
+    dim("(There is no second asking.)");
+    awaitContinue(finaleBlackout);
   }
 
   // ---- DAWN (shown when the player chooses to go on from the handshake). --
   function showDawn() {
     phase = PHASES.DONE;
     setBackdrop("assets/bg-dawn.png");
-    body.classList.remove("crit");
+    body.classList.remove("crit", "armed");
     clock.textContent = "DAWN"; clock.className = "dawn";
     crt.style.setProperty("--tension", 0);
     input.disabled = true; input.placeholder = "— reload to run it again —";
@@ -1374,12 +1822,14 @@ if (typeof document !== "undefined") (function () {
 
   // ---- FAIL beat + blackout. ---------------------------------------------
   function failBeat(res) {
-    turnsLeft = Math.max(0, turnsLeft - 3); renderClock();
+    failCount++;
+    flare(); renderClock();
     rule();
     errline("DECRYPT REJECTED — " + esc(res.choiceWord) + " does not hold against the channel you grounded it on. The signal destabilises.");
     Sound.reject();
-    if (turnsLeft <= 0) { blackout(); return; }
-    dim("The light window jumps forward. Re-work your private channel and try again.");
+    if (failCount >= 3) { failsafeBlackout(); return; }
+    const left = 3 - failCount;
+    dim("Instability spikes — " + left + " attempt" + (left === 1 ? "" : "s") + " before the failsafe triggers. Re-work your private channel and read it again.");
   }
   function blackout() {
     dead = true; phase = PHASES.DONE;
@@ -1387,6 +1837,35 @@ if (typeof document !== "undefined") (function () {
     input.disabled = true; input.placeholder = "— reload to run it again —";
     setBackdrop(null);
     body.classList.add("blackout");
+  }
+  // Distinct end for FAILING THE HANDSHAKE (vs. running out of light). Shown after the
+  // alien's reckoning + the player steps past the beat.
+  function finaleBlackout() {
+    dead = true; phase = PHASES.DONE;
+    input.disabled = true; input.placeholder = "— reload to face it again —";
+    const veil = $("blackout-veil");
+    if (veil) veil.innerHTML = "<div>JUDGEMENT RENDERED.</div><div class=\"quiet\">You answered, and the answer was not enough. The light does not return — reload to face it again.</div>";
+    setBackdrop(null);
+    body.classList.add("blackout");
+  }
+  // Transient red instability flash on a wrong decrypt.
+  function flare() {
+    body.classList.add("flare");
+    if (flareTimer) clearTimeout(flareTimer);
+    flareTimer = setTimeout(function () { body.classList.remove("flare"); }, 1000);
+  }
+  // Three misreadings trip the failsafe — distinct from the finale's one-shot. The
+  // signature withdraws IMPERSONALLY; the intimate alien voice stays reserved for the finale.
+  function failsafeBlackout() {
+    dead = true; phase = PHASES.DONE;
+    rule();
+    sysmsg("⟁ THE SIGNATURE WITHDRAWS — the failsafe wakes.");
+    narr("Three times it spoke, and three times you could not hold what was said. To be met as an equal, a kind must first be able to listen — and you could not read what was sent. A mind that cannot understand cannot be trusted with the morning. You are not the one it waited for.");
+    input.disabled = true; input.placeholder = "— reload to face it again —";
+    const veil = $("blackout-veil");
+    if (veil) veil.innerHTML = "<div>JUDGEMENT RENDERED.</div><div class=\"quiet\">The signals went unread. The light does not return — reload to face it again.</div>";
+    setBackdrop(null);
+    setTimeout(function () { body.classList.add("blackout"); }, reduced ? 0 : 2000);
   }
 
   // ---- Command dispatch. -------------------------------------------------
@@ -1401,6 +1880,8 @@ if (typeof document !== "undefined") (function () {
     if (line === "") return;
     if (phase === PHASES.DONE) { you(line); dim("The signal is locked. Reload to play again."); return; }
     if (phase === PHASES.DIALOGUE) { dialogueAnswer(line); return; }
+    if (phase === PHASES.CONVO) { convoAnswer(line); return; }
+    if (talkBusy) return;                       // a live Gemini reply is in flight — ignore briefly
 
     you(line);
     const sp = line.indexOf(" ");
@@ -1438,7 +1919,7 @@ if (typeof document !== "undefined") (function () {
       case "DECRYPT":   doDecrypt(rest); break;
       case "CRIB":      crib(rest); break;
       case "CLEAR":     clearFeed(); break;
-      default:          dim("Unknown command: " + esc(cmd) + ". Type HELP.");
+      default:          actTalk(line);          // natural language → GEMINI (live) / next-step nudge (offline)
     }
   }
 
@@ -1452,14 +1933,35 @@ if (typeof document !== "undefined") (function () {
   input.addEventListener("keydown", function (e) {
     if (e.key && (e.key.length === 1 || e.key === "Backspace")) { Sound.start(); Sound.key(); }
   });
-  document.addEventListener("click", function (e) { if (e.target !== muteBtn && !input.disabled) input.focus(); });
+  document.addEventListener("click", function (e) {
+    if (e.target !== muteBtn && !input.disabled) input.focus();
+  });
   muteBtn.addEventListener("click", function () { const m = Sound.toggle(); muteBtn.innerHTML = m ? "♪ off" : "♪ on"; input.focus(); });
   $("helpbtn").addEventListener("click", function () { Sound.start(); handle("help"); input.focus(); });
 
   // ---- Boot into the briefing (STANDBY; clock dormant). ------------------
-  brand.textContent = "ENIGMA-CHALLENGE // BRIEFING";
+  brand.textContent = "DAWN OR ECLIPSE // BRIEFING";
   clock.textContent = "STANDBY"; clock.className = ""; bar.hidden = true;
-  briefing();
+  // Hosted default: when served over http(s) (the public Netlify deploy), the
+  // live companion routes through a SAME-ORIGIN proxy
+  //   /v1/chat/completions -> Netlify Function -> Tailscale Funnel -> Ollama
+  // so jurors get the live mode WITHOUT supplying their own key (the proxy holds
+  // it; the client never sees it). Opened locally (file://) there is no proxy, so
+  // we keep the BYOK gate. A user-entered key/endpoint always overrides this.
+  const HOSTED_DEFAULT = (location.protocol === "https:" || location.protocol === "http:")
+    ? { kind: "openai", baseUrl: "https://headless-server-wsl.tailec55cf.ts.net:8443", model: "gemma3:4b", hosted: true }
+    : null;
+  (function bootLink() {
+    let cfg = null;
+    try {
+      const raw = localStorage.getItem("enigma_live_cfg");
+      if (raw) cfg = JSON.parse(raw);
+      else { const oldKey = localStorage.getItem("enigma_gemini_key"); if (oldKey) cfg = { kind: "gemini", key: oldKey }; }
+    } catch (e) { cfg = null; }
+    if (!cfg && HOSTED_DEFAULT) cfg = HOSTED_DEFAULT;   // hosted deploy: live on by default
+    if (cfg) { LiveAI.setBackend(cfg); liveMode = true; }
+    briefing();
+  })();
   input.focus();
 })();
 </script>
