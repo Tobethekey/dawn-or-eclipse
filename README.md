@@ -63,4 +63,4 @@ assets/         Imagen backdrops + title art
 
 ## License
 
-Code MIT. Generated art and text are provided as build artifacts for jam review.
+The code is released under the **MIT License** (see [LICENSE](./LICENSE)). The AI-generated backdrops (`/assets`) and the Gemini/Antigravity content (`/gemini`) are provided as build artifacts for jam review.
